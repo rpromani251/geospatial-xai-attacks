@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Data
+data/raw/
+data/interim/
+data/processed/
+data/external/
+
+# Results
+results/
+outputs/
+artifacts/
+
+# Model/data artifacts
+*.pkl
+*.joblib
+*.pt
+*.pth
+*.npz
+*.npy
+
+# Caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
