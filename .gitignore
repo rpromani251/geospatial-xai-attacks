@@ -1,3 +1,4 @@
+cat > .gitignore <<'EOF'
 # Python
 __pycache__/
 *.py[cod]
@@ -43,3 +44,4 @@ artifacts/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+EOF
