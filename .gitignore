@@ -1,7 +1,9 @@
-cat > .gitignore <<'EOF'
 # Python
 __pycache__/
 *.py[cod]
+*.egg-info/
+dist/
+build/
 
 # Virtual environments
 .venv/
@@ -16,18 +18,35 @@ env/
 .env.*
 !.env.example
 
+# API keys / credentials
+*.pem
+*.key
+credentials.json
+secrets.yaml
+secrets.yml
+
+# AI assistant config (may contain API keys)
+.claude/
+.codex/
+CC-Session-Logs
+CC-Session-Logs/
+
 # OS / editor
 .DS_Store
+Thumbs.db
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 
-# Data
+# Data (too large for git)
 data/raw/
 data/interim/
 data/processed/
 data/external/
 
-# Results
+# Results / outputs
 results/
 outputs/
 artifacts/
@@ -39,9 +58,11 @@ artifacts/
 *.pth
 *.npz
 *.npy
+*.h5
+*.hdf5
+*.onnx
 
 # Caches
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-EOF
