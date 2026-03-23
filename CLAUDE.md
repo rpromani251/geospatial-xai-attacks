@@ -30,10 +30,11 @@ data/            # raw/, interim/, processed/ (git-ignored)
 notebooks/       # Exploratory notebooks
 results/         # Experiment outputs (git-ignored)
 docs/            # Roadmap, experiment registry
+papers/          # Cloned reference repos (git-ignored)
 ```
 
 ## Dependencies
-numpy, pandas, scikit-learn, pyyaml
+numpy, pandas, scikit-learn, pyyaml, matplotlib, lime, shap, jupyter
 
 ## Phase Summary
 See `docs/roadmap.md` for detailed objectives, outputs, and exit criteria per phase.
@@ -51,11 +52,24 @@ See `docs/roadmap.md` for detailed objectives, outputs, and exit criteria per ph
 | 8 | Uncertainty | Connect explanation fragility to UQ |
 | 9 | Consolidation | Paper-ready figures, tables, reproducibility |
 
-## Next Steps (Phase 0/1)
-- [ ] Acquire dataset and place in `data/raw/`
-- [ ] Implement data loading (`src/data/load_tabular.py`)
-- [ ] Implement baseline model training (`src/models/train.py`)
-- [ ] Wire up config + baseline script (`configs/baseline.yaml`, `scripts/run_baseline.py`)
+## Reference Repos
+| Paper | Local Path | Key Files |
+|-------|-----------|-----------|
+| Fooling LIME & SHAP (Slack et al.) | `papers/fooling-lime-shap/` | `adversarial_models.py`, `COMPAS_Example.ipynb`, `compas_experiment.py` |
+
+## Fooling LIME/SHAP — Key Concepts
+- **Attack:** OOD detector (RF) distinguishes real data from explainer perturbations
+- **Scaffold model:** returns biased predictions on real data, innocent predictions on OOD perturbations
+- **Datasets:** COMPAS, Communities & Crime, German Credit (all binary classification with protected attributes)
+- **Fidelity:** measures how well adversarial model matches biased model on in-distribution data
+- Their old requirements.txt (2019-era) doesn't build on Python 3.12 — use modern versions instead
+
+## Next Steps
+- [ ] Read through Fooling LIME/SHAP paper code (start with `COMPAS_Example.ipynb`)
+- [ ] Implement Phase 0/1 baseline pipeline (see plan in `.claude/plans/`)
+- [ ] Add `__init__.py` files to all `src/` packages
+- [ ] Implement `src/utils/io.py`, `src/data/load_tabular.py`, `src/models/train.py`
+- [ ] Wire up `configs/baseline.yaml` + `scripts/run_baseline.py`
 
 ## Interpretation Notes
 - "Non-adversarial robustness" is evaluation, not attack
