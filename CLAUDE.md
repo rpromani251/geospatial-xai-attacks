@@ -31,6 +31,7 @@ notebooks/       # Exploratory notebooks
 results/         # Experiment outputs (git-ignored)
 docs/            # Roadmap, experiment registry
 papers/          # Cloned reference repos (git-ignored)
+CC-Session-Logs/ # Symlink → ~/Desktop/Vault/CC-Session-Logs/ (shared across projects)
 ```
 
 ## Dependencies
@@ -64,8 +65,18 @@ See `docs/roadmap.md` for detailed objectives, outputs, and exit criteria per ph
 - **Fidelity:** measures how well adversarial model matches biased model on in-distribution data
 - Their old requirements.txt (2019-era) doesn't build on Python 3.12 — use modern versions instead
 
+## Paper Reading Order (Fooling LIME/SHAP)
+Recommended order for understanding the attack before reimplementing:
+1. `get_data.py` — data loading, feature shapes
+2. `COMPAS_Example.ipynb` — step-by-step attack walkthrough (main event)
+3. `adversarial_models.py` — general-purpose attack classes
+4. `utils.py` — explanation helper functions
+5. `compas_experiment.py` — scripted version (closest to what we'll recreate)
+6. `cc_experiment.py`, `german_experiment.py` — skim for dataset differences
+7. `threshold.py`, `analyze_threshold.py`, `create_pca.py` — supplementary, lowest priority
+
 ## Next Steps
-- [ ] Read through Fooling LIME/SHAP paper code (start with `COMPAS_Example.ipynb`)
+- [ ] Read through Fooling LIME/SHAP paper code (following reading order above)
 - [ ] Implement Phase 0/1 baseline pipeline (see plan in `.claude/plans/`)
 - [ ] Add `__init__.py` files to all `src/` packages
 - [ ] Implement `src/utils/io.py`, `src/data/load_tabular.py`, `src/models/train.py`
