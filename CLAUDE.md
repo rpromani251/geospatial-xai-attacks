@@ -1,10 +1,10 @@
 # geospatial-xai-attacks
 
 ## Purpose
-UROP research project reproducing adversarial and manifold-aware robustness analyses for explainability methods (LIME, SHAP, GeoShapley) in geospatial contexts.
+UROP research project: adversarial and manifold-aware robustness analyses for explainability methods (LIME, SHAP, GeoShapley) in geospatial contexts. See `task_summary.md` (in vault) for the full 3-part framework design.
 
 ## Status
-**Phase 0 — Scaffold.** Project structure in place, no implementation yet.
+**Steps 1–3 complete.** Baseline XGBoost (R²=0.89), SHAP+LIME explainers, adversarial scaffold attack all working. Steps 4–6 remain.
 
 ## Project Rules
 - Experiment code goes in `src/`
@@ -13,7 +13,6 @@ UROP research project reproducing adversarial and manifold-aware robustness anal
 - Save outputs under `results/`
 - Config files go in `configs/`
 - Make minimal, reviewable changes
-- Spatial experiments only begin after tabular pipeline is fully runnable
 
 ## Structure
 ```
@@ -31,56 +30,44 @@ notebooks/       # Exploratory notebooks
 results/         # Experiment outputs (git-ignored)
 docs/            # Roadmap, experiment registry
 papers/          # Cloned reference repos (git-ignored)
-CC-Session-Logs/ # Symlink → ~/Desktop/Vault/CC-Session-Logs/ (shared across projects)
 ```
 
 ## Dependencies
-numpy, pandas, scikit-learn, pyyaml, matplotlib, lime, shap, jupyter
+numpy, pandas, scikit-learn, pyyaml, matplotlib, lime, shap, xgboost, geopandas, shapely, pyproj, jupyter
 
-## Phase Summary
-See `docs/roadmap.md` for detailed objectives, outputs, and exit criteria per phase.
+## Implementation Plan
 
-| Phase | Name | Goal |
-|-------|------|------|
-| 0 | Scaffold | Clean repo with stable paths, configs, runnable entry points |
-| 1 | Baseline | Smallest end-to-end tabular pipeline (no attacks) |
-| 2 | Explainers | LIME + SHAP explanation generation and saving |
-| 3 | Fooling LIME/SHAP | Reproduce adversarial attack in tabular setting |
-| 4 | Trust Explanations | Non-adversarial robustness / on-manifold evaluation |
-| 5 | GeoShapley | Spatial explanation support + perturbation audit |
-| 6 | Spatial Attack | Adapt fooling framework to geospatial context |
-| 7 | Manifold Attack | Worst-case realistic perturbation (possible novel contribution) |
-| 8 | Uncertainty | Connect explanation fragility to UQ |
-| 9 | Consolidation | Paper-ready figures, tables, reproducibility |
+| Step | Name | Goal | Status |
+|------|------|------|--------|
+| 1 | Baseline | Load Seattle housing, train XGBoost, save metrics | Done |
+| 2 | Explainers | KernelSHAP + LIME wrappers on housing model | Done |
+| 3 | Adversarial Scaffold | OOD detector + biased/innocuous models (digital redlining) | Done |
+| 4 | Spatially-Aware Neighborhoods | 3-level perturbation generator (random, medoid, spatial) | Next |
+| 5 | Robustness Analysis | 3×4 results matrix + ensemble + trustworthiness classification | — |
+| 6 | Worst-Case x* | argmax search over Level 3 neighborhood | — |
+
+## Dataset
+- **Housing**: `data/raw/seattle_sample_3k.csv` — 3000 records, 10 features + log_price, UTM coords
+- **Census**: `data/processed/king_county_demographics.csv` — 398 tracts, pct_black/pct_latino/pct_black_latino
+- **Spatial join**: `data/processed/seattle_housing_with_demographics.csv` — 3000 records matched to 334 tracts
+- **Shapefiles**: `data/raw/tl_2015_53_tract/` — TIGER/Line 2015 WA census tracts
+- Processing script: `scripts/process_census.py`
 
 ## Reference Repos
 | Paper | Local Path | Key Files |
 |-------|-----------|-----------|
 | Fooling LIME & SHAP (Slack et al.) | `papers/fooling-lime-shap/` | `adversarial_models.py`, `COMPAS_Example.ipynb`, `compas_experiment.py` |
 
-## Fooling LIME/SHAP — Key Concepts
-- **Attack:** OOD detector (RF) distinguishes real data from explainer perturbations
-- **Scaffold model:** returns biased predictions on real data, innocent predictions on OOD perturbations
-- **Datasets:** COMPAS, Communities & Crime, German Credit (all binary classification with protected attributes)
-- **Fidelity:** measures how well adversarial model matches biased model on in-distribution data
-- Their old requirements.txt (2019-era) doesn't build on Python 3.12 — use modern versions instead
-
-## Paper Reading Order (Fooling LIME/SHAP)
-Recommended order for understanding the attack before reimplementing:
-1. `get_data.py` — data loading, feature shapes
-2. `COMPAS_Example.ipynb` — step-by-step attack walkthrough (main event)
-3. `adversarial_models.py` — general-purpose attack classes
-4. `utils.py` — explanation helper functions
-5. `compas_experiment.py` — scripted version (closest to what we'll recreate)
-6. `cc_experiment.py`, `german_experiment.py` — skim for dataset differences
-7. `threshold.py`, `analyze_threshold.py`, `create_pca.py` — supplementary, lowest priority
+## Key Results (Step 3)
+- SHAP attack succeeds: UTM_Y importance −57%, pct_black_latino hidden (0.035). OOD accuracy 99.5%
+- LIME attack partially fails: UTM_Y stays #1, pct_black_latino visible (0.108). OOD accuracy 100%
+- Novel finding: geospatial setting makes LIME more resistant than SHAP (opposite of Slack's tabular results)
+- Innocuous model R²=0.64 (8 safe features), biased model penalty=0.3 log_price on tracts >25% minority
 
 ## Next Steps
-- [ ] Read through Fooling LIME/SHAP paper code (following reading order above)
-- [ ] Implement Phase 0/1 baseline pipeline (see plan in `.claude/plans/`)
-- [ ] Add `__init__.py` files to all `src/` packages
-- [ ] Implement `src/utils/io.py`, `src/data/load_tabular.py`, `src/models/train.py`
-- [ ] Wire up `configs/baseline.yaml` + `scripts/run_baseline.py`
+- [ ] Step 4: Implement spatially-aware neighborhoods (k-medoids + Gower distance + geographic weighting)
+- [ ] Step 5: Run 3×4 robustness matrix, ensemble aggregation, k-NN trustworthiness
+- [ ] Step 6: Implement worst-case x* search over Level 3 neighborhood
 
 ## Interpretation Notes
 - "Non-adversarial robustness" is evaluation, not attack
