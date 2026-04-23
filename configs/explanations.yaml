@@ -1,0 +1,10 @@
+model_path: results/baseline/model.pkl
+
+n_explain: 200
+
+shap:
+  n_background: 100
+
+lime:
+  num_samples: 500
+  random_state: 42

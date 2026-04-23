@@ -1,0 +1,22 @@
+model:
+  n_estimators: 500
+  max_depth: 6
+  learning_rate: 0.1
+  random_state: 42
+
+data:
+  dataset: "raw"
+  test_size: 0.2
+  random_state: 42
+
+features:
+  - bathrooms
+  - sqft_living
+  - sqft_lot
+  - grade
+  - condition
+  - waterfront
+  - view
+  - age
+
+target: log_price
