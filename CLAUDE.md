@@ -19,7 +19,7 @@ pEx SBM as scaffold-attack detector. Four-dataset replication complete
 (housing, Slack COMPAS/German/CC). Mechanism identified (anchor-dominance
 erosion, unified as m-field variability + layer-misalignment). K-sweep
 and tanh-sweep confirm mechanism; sinusoidal-sign Lipschitz sweep retired.
-Peng meeting (April 23) done — paper shape TBD.
+Peng meeting (April 23) done.
 
 **Entry point for resume:** `docs/sbm_explainer/README.md`, then
 `docs/sbm_explainer/day_log_apr22.md` for narrative context.
@@ -88,8 +88,7 @@ numpy, pandas, scikit-learn, pyyaml, matplotlib, lime, shap, xgboost, geoshapley
 - Visualizations: `scripts/plot_results.py` → 2×2 summary figure + individual honest-vs-adversarial bar charts in `results/figures/`
 
 ## Next Steps (2026-04-25)
-- [ ] Paper shape decision post-Peng meeting: workshop/TMLR vs NeurIPS main
-- [ ] If NeurIPS track: derive plain-SBM modular-recovery-probability bound as a function of (m-variability, K, layer-alignment). Significant work
+- [ ] Decide whether the four-dataset replication + K-sweep is sufficient evidence on its own, or whether a formal bound on plain-SBM's recovery probability as a function of (m-variability, K, layer-alignment) is needed first — significant additional work
 - [ ] Penalty sweep (scaffold penalty 0.10/0.30/0.50) to confirm Δ robustness — partial results in `results/sbm_explainer/fingerprint_sbm_p{0_10,0_30,0_50}/`
 - [ ] Predictive test on H-DP gate-boundary clusters (do they have higher adversarial sensitivity on held-out?)
 - [ ] Extend worst-case x* sweep to LIME (currently TreeSHAP-only; LIME is expensive — consider subsampling)

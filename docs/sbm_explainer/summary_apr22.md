@@ -531,11 +531,11 @@ Figure: `docs/sbm_explainer/figures/tanh_sweep.png`.
 - β-sweep as second confirmatory test — downgraded to robustness
   result with n=3-seed caveat.
 
-**Paper-shape options:**
-- **Workshop/TMLR.** "Empirical regularity + first-order cosine model
+**Evidentiary status options:**
+- **Current evidence.** "Empirical regularity + first-order cosine model
   + one mechanism test." Clean and defensible. What the current
-  evidence supports.
-- **NeurIPS main.** Needs either (a) the H-DP refinement/LIME-regime
+  evidence supports on its own.
+- **Stronger claim.** Needs either (a) the H-DP refinement/LIME-regime
   story promoted to a second contribution, or (b) a sharper mechanism
   test than K-sweep — likely a theoretical bound on plain-SBM's
   recovery probability as a function of K, which is substantial
@@ -543,8 +543,8 @@ Figure: `docs/sbm_explainer/figures/tanh_sweep.png`.
 
 **Three questions for Peng Thursday:**
 1. Lead finite-K (binary-layer Δ) or H-DP (refinement regimes)?
-2. Is four-dataset + K-sweep enough for workshop submission, or
-   should we develop the modular-recovery-probability bound?
+2. Is four-dataset + K-sweep enough evidence, or should we develop
+   the modular-recovery-probability bound?
 3. Does β-sweep belong as robustness appendix, or drop it?
 
 ## 5. Open technical questions
@@ -560,7 +560,7 @@ Figure: `docs/sbm_explainer/figures/tanh_sweep.png`.
   scaffold penalties? At stronger penalty, do the mixed clusters merge
   into pure-high (collapsing to two regimes)?
 - Do any rung-3 variants reproduce the LIME-attr saturation regime
-  (NMI → 0.9+ at K=2)? Would give a publishable encoder-as-detector
+  (NMI → 0.9+ at K=2)? Would give a strong standalone encoder-as-detector
   result with no pEx component.
 
 ---

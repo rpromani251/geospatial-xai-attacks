@@ -640,19 +640,18 @@ geometry at $O(1)$; pEx holds via the conditional prior.
   to `sign(x)` and the sign function has no Lipschitz constant. The
   tanh-Bernoulli probe (§6c) is the correct smoothness family.
 
-**Honest paper positioning.** The K-sweep is the one clean formal-
+**Honest evidentiary status.** The K-sweep is the one clean formal-
 prediction test. If it holds up on re-examination (which it does —
 §6a data is unambiguous), the story is "empirical regularity on four
 datasets + first-order cosine model + one clean mechanism test." That
-is TMLR/workshop-shaped more than NeurIPS-main-shaped unless the
-H-DP refinement story (§3, three LIME attribution regimes) is
-promoted as a separate contribution.
+holds up as a self-contained empirical result unless the H-DP
+refinement story (§3, three LIME attribution regimes) is promoted as
+a separate contribution.
 
 **Ask Peng:**
 1. Lead with binary-layer Δ (finite-K) or with refinement regimes
    (H-DP)?
-2. Is four-dataset replication + K-sweep enough for workshop, or is
-   there a sharper mechanism test he'd want before main-conference
-   submission?
-3. Does the β-sweep belong in the paper (as robustness appendix) or
+2. Is four-dataset replication + K-sweep sufficient evidence, or is
+   there a sharper mechanism test he'd want?
+3. Does the β-sweep belong in the writeup (as robustness appendix) or
    get dropped (given it can't settle a mechanism question)?

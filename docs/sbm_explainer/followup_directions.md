@@ -135,8 +135,8 @@ Compare gate-boundary nodes vs pure-low and pure-high clusters.
 - Deliverable: per-cluster sensitivity distribution; if gate-boundary
   is significantly higher, H-DP moves from "interpretive diagnostic"
   to **"predictive method."**
-- Importance: would be a strong second-contribution candidate for a
-  NeurIPS-main paper.
+- Importance: would be a strong second contribution alongside the
+  main finding.
 
 ### Q3. Plain-SBM modular-recovery-probability bound
 
@@ -150,8 +150,9 @@ make the §3.1 unified mechanism into a formal theorem.
 - Deliverable: a theorem stating "under conditions X, plain-SBM
   recovery probability ≤ f(m-var, K, align); under those conditions
   pEx-SBM recovers the layer with probability ≥ g(·)."
-- Importance: **required** for a NeurIPS-main submission. Optional
-  for workshop / TMLR.
+- Importance: would upgrade the mechanism from empirical regularity
+  to a formal theorem — a substantial undertaking, not required for
+  the current empirical claim.
 
 ### Q4. Extend worst-case x* (Exp 6) to LIME
 
@@ -204,10 +205,10 @@ See `../thursday_discussion.md` for context. Three decisions:
    number, p = 1.8e-9). H-DP is richer (3 attribution regimes,
    gate-boundary sub-population) but arity-mismatched (K̂ ≈ 10 vs
    binary layer).
-2. **Workshop/TMLR vs NeurIPS-main?** Workshop (four-dataset +
-   K-sweep + middle-regime claim) is achievable now. Main-track
-   needs Q3 (the theoretical bound).
+2. **Is the current evidence sufficient, or is a formal bound needed?**
+   Four-dataset + K-sweep + middle-regime claim is achievable now; a
+   stronger theoretical claim needs Q3 (the theoretical bound).
 3. **Tanh β-sweep — keep or drop?** Keep — it's the second
    confirmatory mechanism axis alongside K-sweep.
 
-Bonus: is the K=2 NMI=0.916 finding (S2) publishable standalone?
+Bonus: does the K=2 NMI=0.916 finding (S2) stand on its own as a separate result?

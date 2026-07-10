@@ -394,13 +394,13 @@ Output: `results/sbm_explainer/spectrum_sweep/{summary.json, <feature>/{fingerpr
 
 See `docs/thursday_discussion.md` for full context. The three decisions Peng needs to weigh in on:
 
-1. **Lead finite-K Δ (clean, binary-layer NMI) or H-DP refinement (richer, arity-mismatched)?** Finite-K gives one clean number (Δ = +0.048, p = 1.8e-9). H-DP identifies a 20% gate-boundary sub-population and three scaffold-attack regimes. Workshop paper → finite-K. Main-track → both, as the NMI headline + the H-DP refinement.
+1. **Lead finite-K Δ (clean, binary-layer NMI) or H-DP refinement (richer, arity-mismatched)?** Finite-K gives one clean number (Δ = +0.048, p = 1.8e-9). H-DP identifies a 20% gate-boundary sub-population and three scaffold-attack regimes. A single clean headline number favors finite-K; a richer two-part story favors presenting both the NMI headline and the H-DP refinement together.
 
-2. **Workshop/TMLR vs NeurIPS-main?** Workshop: four-dataset replication + K-sweep + middle-regime claim is enough. NeurIPS-main: needs a theoretical plain-SBM modular-recovery-probability bound as a function of (m-variability, K, layer-alignment). Substantial extra work.
+2. **Is the current evidence sufficient, or does it need a formal bound?** Four-dataset replication + K-sweep + middle-regime claim is the current evidence. A stronger claim would need a theoretical plain-SBM modular-recovery-probability bound as a function of (m-variability, K, layer-alignment) — substantial extra work.
 
 3. **Tanh β-sweep — keep or drop?** Keep as mechanism confirmation #2 (alongside K-sweep). The 10-seed knee at β=5 is solid. The sinusoidal sweep is retired.
 
-Bonus: is the K=2 NMI=0.916 sqft_lot LIME unsupervised-detection finding publishable on its own as a standalone attack-detection paper?
+Bonus: does the K=2 NMI=0.916 sqft_lot LIME unsupervised-detection finding stand on its own as a separate result, or does it only make sense as part of the larger SBM story?
 
 ---
 
@@ -412,6 +412,6 @@ Bonus: is the K=2 NMI=0.916 sqft_lot LIME unsupervised-detection finding publish
 | 2 | H-DP gate-boundary predictive test — do the 39 gate-boundary nodes have higher held-out adversarial sensitivity? | 1–2 days | Promotes H-DP from interpretive to predictive diagnostic |
 | 3 | Extend `run_worst_case.py` to LIME (subsample n=20 candidates per point) | 2–4 hr | Cross-explainer worst-case comparison |
 | 4 | Increase GeoSHAP N in robustness (20 → 50) | ~10 hr | Complete 50×3×5 matrix; enables proper ensemble |
-| 5 | Plain-SBM modular-recovery-probability bound | weeks | Required only if NeurIPS-main track |
+| 5 | Plain-SBM modular-recovery-probability bound | weeks | Only needed if a formal theoretical claim is required |
 
 `docs/sbm_explainer/followup_directions.md` has the canonical queued-follow-up list.

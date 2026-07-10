@@ -47,6 +47,11 @@ docs/project_overview (superseded).pdf
 docs/project_summary (superseded).pdf
 docs/Geospatial XAI Attack Framework.pdf
 
+# Internal planning material (venue/timeline goals — not for the public repo)
+docs/journal_paper_plan.md
+docs/presentations/
+scripts/build_peng_slides.py
+
 # Data (too large for git)
 data/raw/
 data/interim/

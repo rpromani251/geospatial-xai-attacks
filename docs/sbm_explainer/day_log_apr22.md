@@ -234,5 +234,6 @@ the detector (both sides lose signal).
   says stay.
 - Does the unified §3.1 mechanism survive if we try to write down a
   formal bound on plain SBM recovery probability as a function of
-  (m-variability, K, layer-alignment)? If yes → NeurIPS-main-shaped.
-  If no → TMLR/workshop.
+  (m-variability, K, layer-alignment)? If yes, that supports a
+  stronger theoretical claim; if no, the empirical result still
+  stands on its own.

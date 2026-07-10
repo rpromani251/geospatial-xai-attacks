@@ -210,17 +210,16 @@ Per `docs/sbm_explainer/summary_apr22.md` §4d, three concrete decisions are sti
 
 1. **Lead finite-K (binary-layer Δ) or H-DP (refinement regimes)?** Finite-K gives the cleaner
    headline number; H-DP gives a richer but arity-mismatched refinement story.
-2. **Is the four-dataset replication + K-sweep enough for a workshop/TMLR submission, or does a
-   NeurIPS-main target require developing a formal bound on plain-SBM's recovery probability as a
-   function of (fingerprint dimension K, refinement-mean variability, layer alignment)** — which
-   would be substantial additional work?
+2. **Is the current evidence (four-dataset replication + K-sweep) sufficient on its own, or does
+   it need a formal bound on plain-SBM's recovery probability as a function of (fingerprint
+   dimension K, refinement-mean variability, layer alignment)** — which would be substantial
+   additional work?
 3. **Does the tanh-β Lipschitz sweep belong as a robustness appendix, or should it be dropped?**
    (The related sinusoidal Lipschitz sweep was already retired — confidence intervals overlapped
    across β even after reparameterization — and superseded by the cleaner tanh probe.)
 
 **Status:** Open. Core detection result and four-dataset replication are solid; mechanism is
-confirmed on two independent axes; paper shape and scope are pending Peng's input on the three
-questions above.
+confirmed on two independent axes; scope is pending Peng's input on the three questions above.
 
 ---
 

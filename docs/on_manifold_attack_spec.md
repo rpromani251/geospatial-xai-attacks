@@ -104,7 +104,7 @@ Target fill-in: 2–3 week implementation window after spec review.
 - No implementation until reviewed with Peng (earliest: post-Apr-23 meeting).
 - Each baseline reproduction must match published numbers within tolerance on its canonical dataset *before* being run on our pipeline — otherwise comparison is meaningless.
 - If baseline code is unavailable, flag for discussion rather than reimplementing from scratch.
-- β-sweep retention, workshop-vs-main-venue decision, and finite-K-vs-H-DP lead are upstream decisions that shape this benchmark's framing — resolve those first.
+- β-sweep retention and finite-K-vs-H-DP lead are upstream decisions that shape this benchmark's framing — resolve those first.
 
 ## §9. References
 
