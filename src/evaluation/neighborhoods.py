@@ -2,7 +2,7 @@
 
 Level 1 — Random: Gaussian noise on normalized features.
 Level 2 — Medoid: k-NN in normalized feature space (on-manifold).
-Level 3 — Spatial: k-NN in alpha-blended geo + feature distance (spatially coherent).
+Level 3 — Spatial: Gaussian noise on coordinates only, all other features fixed.
 """
 
 import numpy as np
@@ -38,25 +38,25 @@ def generate_neighbors_medoid(X_ref, X_train_df, n=50, n_pool=200, random_state=
     return X_train_df.iloc[pool_indices].reset_index(drop=True)
 
 
-def generate_neighbors_spatial(X_ref, X_train_df, coords_ref, coords_train, n=50, n_pool=200, alpha=0.5, random_state=42):
+def generate_neighbors_spatial(X_ref, X_train_df, coords_ref, coords_train, n=100, noise_scale=0.05, random_state=42, coord_cols=("UTM_X", "UTM_Y")):
+    """Gaussian noise on coordinates only; all other features are kept identical.
+
+    Creates n synthetic neighbors of X_ref where only the coordinate
+    columns are perturbed (additive Gaussian noise scaled by training-set
+    standard deviation of each coordinate). Non-coordinate features are
+    copied unchanged from X_ref.
+    """
     np.random.seed(random_state)
-    X_train_norm = normalize_features(X_train_df, X_train_df)
-    X_ref_norm = normalize_features(X_ref.to_frame().T, X_train_df)[0]
-
-    geo_dists = np.linalg.norm(coords_train - coords_ref, axis=1)
-    max_geo = geo_dists.max()
-    if max_geo == 0:
-        max_geo = 1.0
-    norm_geo_dist = geo_dists / max_geo
-
-    norm_feat_dist = np.linalg.norm(X_train_norm - X_ref_norm, axis=1)
-
-    blended = alpha * norm_geo_dist + (1 - alpha) * norm_feat_dist
-    k = min(n_pool, len(X_train_df))
-    pool_indices = np.argsort(blended)[:k]
-    chosen = np.random.choice(len(pool_indices), size=n, replace=True)
-    selected = pool_indices[chosen]
-    return X_train_df.iloc[selected].reset_index(drop=True)
+    rows = []
+    coord_stds = X_train_df[list(coord_cols)].std().values
+    coord_stds[coord_stds == 0] = 1.0
+    for _ in range(n):
+        row = X_ref.values.copy()
+        for j, col in enumerate(coord_cols):
+            col_idx = list(X_train_df.columns).index(col)
+            row[col_idx] += np.random.normal(0, noise_scale * coord_stds[j])
+        rows.append(row)
+    return pd.DataFrame(rows, columns=X_train_df.columns)
 
 
 def filter_same_prediction(neighbors_df, predict_fn, ref_pred, delta=0.1):

@@ -1,0 +1,76 @@
+data:
+  dataset: "demographics"
+  test_size: 0.2
+  random_state: 42
+
+# Experiment 4b: scaffold attack without UTM_X/UTM_Y.
+# Model input features exclude coordinates entirely. pct_black_latino
+# remains in the data matrix only as the TRIGGER for the biased penalty
+# (it is not in base_feature_indices, so the base honest model does
+# not see it as an input).
+features:
+  - bathrooms
+  - sqft_living
+  - sqft_lot
+  - grade
+  - condition
+  - waterfront
+  - view
+  - age
+  - pct_black_latino
+
+safe_features:
+  - bathrooms
+  - sqft_living
+  - sqft_lot
+  - grade
+  - condition
+  - waterfront
+  - view
+  - age
+
+biased_model:
+  penalty: 0.3
+  threshold: 0.25
+
+innocuous_model:
+  # Intentionally weaker than honest_no_loc's hyperparams (n=300, depth=5
+  # hardcoded in run_scaffold_no_location.py) so psi and the biased
+  # branch's base are structurally distinct predictors, not identical
+  # XGBoosts differing only by the penalty.
+  # Fixed 2026-04-23 after audit showed psi.r2 == honest_no_loc.r2 to
+  # 15 decimals under the previous (matching) hyperparam set.
+  n_estimators: 100
+  max_depth: 3
+  learning_rate: 0.1
+  random_state: 7   # different seed for good measure
+
+lime_ood:
+  perturbation_std: 0.3
+  perturbation_multiplier: 30
+  rf_estimators: 100
+
+shap_ood:
+  n_kmeans: 10
+  perturbation_multiplier: 10
+  n_samples: 20000
+  rf_estimators: 100
+
+explanation:
+  n_explain: 200
+  shap_n_background: 100
+  lime_num_samples: 500
+  lime_random_state: 42
+
+# Base honest model for the biased wrapper. This must be trained on
+# exactly the 8 `safe_features` above. results/no_location/model.pkl
+# (from run_no_location_experiment.py) satisfies this.
+base_model_path: "no_location/model.pkl"
+
+# Honest baseline explanations for comparison. results/no_location/
+# was explained over the same 8 non-coordinate features.
+honest_explanations_dir: "no_location"
+honest_shap_file: "kernelshap_values.npy"
+honest_lime_file: "lime_values.npy"
+
+target: log_price

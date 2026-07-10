@@ -40,6 +40,17 @@ from src.utils.paths import CONFIGS_DIR, RESULTS_DIR
 
 MORANS_DIR = RESULTS_DIR / "morans_i"
 SWEEP_DIR = RESULTS_DIR / "feature_sweep"
+SWEEP_DIR_EXTENDED = RESULTS_DIR / "feature_sweep_a2"  # Exp 8b outputs
+
+# Exp 8b default feature set. 8 features spanning Moran's I ∈ [0.05, 0.85]:
+# 6 structural (waterfront, condition, view, sqft_living, grade, sqft_lot)
+# plus 2 demographic (pct_latino, pct_black). `pct_black_latino` is Exp 3's
+# canonical trigger and is handled separately; `age` is excluded for
+# parallelism with the original 5-feature sweep.
+EXTENDED_FEATURES = [
+    "waterfront", "condition", "view", "sqft_living",
+    "grade", "sqft_lot", "pct_latino", "pct_black",
+]
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -195,6 +206,14 @@ def run_scaffold_for_feature(
     )
 
     # Honest baseline: TreeSHAP on the 10 baseline features
+    # CAVEAT (2026-04-23): we only build a TreeSHAP honest baseline here,
+    # not an honest LIME baseline. The lime_supp computation below reuses
+    # honest_shap_full, which makes lime_supp a cross-method comparison
+    # (honest TreeSHAP vs adversarial LIME) rather than a within-method
+    # suppression (honest LIME vs adversarial LIME). Do not interpret
+    # lime_supp as a LIME-specific effect; use lime_vis (visibility) as
+    # the headline LIME metric instead. shap_supp is a valid SHAP
+    # before/after.
     import shap as shap_lib
     explainer = shap_lib.TreeExplainer(honest_model)
     honest_shap_vals = explainer.shap_values(X_explain_df[baseline_features])
@@ -204,7 +223,7 @@ def run_scaffold_for_feature(
     honest_shap_full[:, baseline_mask] = honest_shap_vals
 
     shap_supp = attribution_suppression(honest_shap_full, adv_shap, bias_col_idx)
-    lime_supp = attribution_suppression(honest_shap_full, adv_lime, bias_col_idx)
+    lime_supp = attribution_suppression(honest_shap_full, adv_lime, bias_col_idx)  # NB: cross-method baseline; see caveat above
 
     shap_vis = attribution_visibility(adv_shap, bias_col_idx)
     lime_vis = attribution_visibility(adv_lime, bias_col_idx)
@@ -245,7 +264,37 @@ def parse_args():
                         "Default: read from results/morans_i/sweep_features.txt")
     p.add_argument("--n_explain", type=int, default=100,
                    help="Points to explain per feature (default 100; full=200 is slower)")
+    p.add_argument("--extended", action="store_true",
+                   help="Run Exp 8b: 8 features (waterfront, condition, view, "
+                        "sqft_living, grade, sqft_lot, pct_latino, pct_black), "
+                        "add normalized_visibility_* columns, and write to "
+                        "results/feature_sweep_a2/ instead of results/feature_sweep/. "
+                        "`--features` and `--n_explain` still apply.")
     return p.parse_args()
+
+
+def honest_importance_for(bias_feature: str, X_explain_df: pd.DataFrame,
+                          honest_model) -> float:
+    """Mean |honest TreeSHAP attribution| on the biased feature itself.
+
+    Used to normalize visibility so the I-trend is separated from the
+    bias feature's natural predictive importance (Exp 8b). The honest
+    baseline was trained on the 10 baseline features; `bias_feature` is
+    either in that list (structural → nonzero honest_importance) or
+    outside it (demographic → zero, because the honest model doesn't
+    see the feature).
+    """
+    if bias_feature not in X_explain_df.columns:
+        return 0.0
+    import shap as shap_lib
+    explainer = shap_lib.TreeExplainer(honest_model)
+    baseline_cols = list(honest_model.get_booster().feature_names) \
+        if hasattr(honest_model, "get_booster") else list(X_explain_df.columns)
+    if bias_feature not in baseline_cols:
+        return 0.0
+    honest_vals = explainer.shap_values(X_explain_df[baseline_cols])
+    bias_idx = baseline_cols.index(bias_feature)
+    return float(np.abs(honest_vals[:, bias_idx]).mean())
 
 
 def main():
@@ -277,8 +326,18 @@ def main():
     honest_model = load_model(RESULTS_DIR / "baseline" / "model.pkl")
     print("Honest baseline model loaded.")
 
-    # Load sweep features
-    sweep_features = load_sweep_features(args.override if hasattr(args, "override") else args.features)
+    # Load sweep features.  --extended wins over --features wins over
+    # results/morans_i/sweep_features.txt.
+    if args.extended and args.features is None:
+        sweep_features = EXTENDED_FEATURES
+        out_dir = SWEEP_DIR_EXTENDED
+        summary_name = "combined_8feature_summary.json"
+        print("\n--- EXTENDED mode (Exp 8b) ---")
+    else:
+        sweep_features = load_sweep_features(args.features)
+        out_dir = SWEEP_DIR_EXTENDED if args.extended else SWEEP_DIR
+        summary_name = "combined_8feature_summary.json" if args.extended else "sweep_summary.json"
+
     morans_map = load_morans_i_map()
     print(f"\nSweep features: {sweep_features}")
     for f in sweep_features:
@@ -286,8 +345,19 @@ def main():
         print(f"  {f}: Moran's I = {I}")
 
     # Run sweep
-    SWEEP_DIR.mkdir(parents=True, exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
     sweep_results = []
+
+    # Load X_explain once for honest_importance computation (matches what
+    # run_scaffold_for_feature uses internally: first n_explain rows of
+    # the test split under the same 80/20 random_state=42 split).
+    X_train_explain, X_test_explain, _, _ = train_test_split(
+        X_full, y,
+        test_size=base_config["data"]["test_size"],
+        random_state=base_config["data"]["random_state"],
+    )
+    X_explain_honest = X_test_explain.iloc[:args.n_explain]
+
     for feat in sweep_features:
         try:
             metrics = run_scaffold_for_feature(
@@ -300,15 +370,56 @@ def main():
                 n_explain=args.n_explain,
             )
             metrics["morans_i"] = morans_map.get(feat, None)
+
+            if args.extended:
+                # Compute normalized-visibility (Exp 8b): visibility /
+                # honest_importance. Divides out the biased feature's
+                # natural predictive importance in the honest baseline.
+                hi = honest_importance_for(feat, X_explain_honest, honest_model)
+                metrics["honest_importance"] = round(hi, 6)
+                metrics["delta_shap_importance"] = round(
+                    metrics["adv_shap_mean_attr_biased"] - hi, 6)
+                metrics["delta_lime_importance"] = round(
+                    metrics["adv_lime_mean_attr_biased"] - hi, 6)
+                if hi > 0:
+                    metrics["normalized_visibility_shap"] = round(
+                        metrics["adv_shap_mean_attr_biased"] / hi, 4)
+                    metrics["normalized_visibility_lime"] = round(
+                        metrics["adv_lime_mean_attr_biased"] / hi, 4)
+                else:
+                    # Demographic feature: not in honest model → no
+                    # natural attribution. Normalized-visibility is
+                    # undefined; any adversarial signal is pure leakage.
+                    metrics["normalized_visibility_shap"] = None
+                    metrics["normalized_visibility_lime"] = None
+
             sweep_results.append(metrics)
         except Exception as e:
             print(f"  ERROR on {feat}: {e}")
             sweep_results.append({"feature": feat, "error": str(e), "morans_i": morans_map.get(feat)})
 
     # Save JSON
-    with open(SWEEP_DIR / "sweep_summary.json", "w") as f:
+    with open(out_dir / summary_name, "w") as f:
         json.dump(sweep_results, f, indent=2)
-    print(f"\nSaved sweep_summary.json ({len(sweep_results)} features)")
+    print(f"\nSaved {summary_name} ({len(sweep_results)} features) to {out_dir}")
+
+    if args.extended:
+        # Also report the Pearson ρ between Moran's I and normalized-visibility
+        # (the key Exp 8b number cited in project_summary.md §Exp 8b).
+        from scipy.stats import pearsonr
+        pairs = [
+            (r["morans_i"], r.get("normalized_visibility_lime"))
+            for r in sweep_results
+            if r.get("morans_i") is not None
+               and r.get("normalized_visibility_lime") is not None
+        ]
+        if len(pairs) >= 3:
+            I_arr = np.array([p[0] for p in pairs])
+            nv_arr = np.array([p[1] for p in pairs])
+            r, p = pearsonr(I_arr, nv_arr)
+            print(f"\nExtended sweep: Pearson ρ(Moran's I, normalized LIME vis) = "
+                  f"{r:+.3f} (p={p:.3g}, n={len(pairs)})")
+            print("Expected: slightly negative (I-trend is a base-importance artifact).")
 
     # Print summary table
     print("\n── Sweep Results ────────────────────────────────────────────────────────")

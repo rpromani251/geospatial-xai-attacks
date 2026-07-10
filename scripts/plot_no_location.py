@@ -14,9 +14,9 @@ from src.utils.paths import RESULTS_DIR
 
 
 def plot_rankings(attributions_dict, feature_names, path):
-    """1x4 horizontal bar charts of mean |attribution| per feature, one per explainer."""
+    """Horizontal bar charts of mean |attribution| per feature, one per explainer."""
     names = list(attributions_dict.keys())
-    fig, axes = plt.subplots(1, 4, figsize=(16, 5))
+    fig, axes = plt.subplots(1, len(names), figsize=(4 * len(names), 5))
 
     for ax, name in zip(axes, names):
         vals = np.abs(attributions_dict[name]).mean(axis=0)
@@ -70,16 +70,18 @@ def plot_baseline_vs_nolocation(baseline_shap, baseline_features, nolocation_tre
 
 
 def plot_agreement(attributions_dict, feature_names, path):
-    """2x3 grid of scatter plots for all pairs of explainers, annotated with Spearman rho."""
+    """Scatter plots for all pairs of explainers, annotated with Spearman rho."""
     names = list(attributions_dict.keys())
     pairs = [
         (names[i], names[j])
         for i in range(len(names))
         for j in range(i + 1, len(names))
-    ]  # 6 pairs for 4 explainers
+    ]
 
-    fig, axes = plt.subplots(2, 3, figsize=(15, 10))
-    axes_flat = axes.flatten()
+    ncols = min(3, len(pairs))
+    nrows = (len(pairs) + ncols - 1) // ncols
+    fig, axes = plt.subplots(nrows, ncols, figsize=(5 * ncols, 5 * nrows))
+    axes_flat = np.atleast_1d(axes).flatten()
 
     for ax, (a, b) in zip(axes_flat, pairs):
         vals_a = np.abs(attributions_dict[a]).mean(axis=0)
@@ -117,14 +119,12 @@ def main():
     # Load no-location attributions
     tree = np.load(out_dir / "treeshap_values.npy")
     kernel = np.load(out_dir / "kernelshap_values.npy")
-    geo = np.load(out_dir / "geoshap_values.npy")
     lime_v = np.load(out_dir / "lime_values.npy")
     feature_names = np.load(out_dir / "feature_names.npy", allow_pickle=True).astype(str)
 
     attributions_dict = {
         "TreeSHAP": tree,
         "KernelSHAP": kernel,
-        "GeoSHAP": geo,
         "LIME": lime_v,
     }
 

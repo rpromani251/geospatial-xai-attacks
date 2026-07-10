@@ -1,7 +1,7 @@
 """Publication-quality figure compilation for geospatial XAI paper.
 
 Produces 5 paper-ready figures in results/paper_figures/:
-  fig1_scaffold_attack.png       -- SHAP / LIME / GeoSHAP attack comparison
+  fig1_scaffold_attack.png       -- SHAP / LIME / GeoShapley attack comparison
   fig2_spatial_redlining.png     -- Honest vs biased Pearson-r bar chart
   fig3_no_location_rankings.png  -- Feature importance with vs without location
   fig4_robustness_heatmap.png    -- 3x4 Spearman-rho robustness heatmap
@@ -21,15 +21,21 @@ sys.path.insert(0, str(ROOT))
 
 from src.utils.paths import RESULTS_DIR
 
-# Full 11-feature list used in adversarial scaffold runs
+# Full 11-feature list used in adversarial scaffold runs (SHAP/LIME arrays)
 SCAFFOLD_FEATURES = [
     "bathrooms", "sqft_living", "sqft_lot", "grade", "condition",
-    "waterfront", "view", "age", "UTM_X", "UTM_Y", "pct_black_latino",
+    "waterfront", "view", "age", "pct_black_latino", "UTM_X", "UTM_Y",
+]
+
+# Unified display list (SHAP/LIME keep UTM_X/UTM_Y; GeoShapley has geo_effect)
+DISPLAY_FEATURES = [
+    "bathrooms", "sqft_living", "sqft_lot", "grade", "condition",
+    "waterfront", "view", "age", "pct_black_latino", "UTM_X", "UTM_Y", "geo_effect",
 ]
 
 
 # ---------------------------------------------------------------------------
-# Figure 1 — Scaffold attack: SHAP / LIME / GeoSHAP side-by-side
+# Figure 1 — Scaffold attack: SHAP / LIME / GeoShapley side-by-side
 # ---------------------------------------------------------------------------
 
 def plot_scaffold_attack(path: Path) -> None:
@@ -46,14 +52,13 @@ def plot_scaffold_attack(path: Path) -> None:
         # Adversarial (11 features, scaffold)
         adv_shap = np.load(RESULTS_DIR / "scaffold" / "adv_shap_values.npy")
         adv_lime = np.load(RESULTS_DIR / "scaffold" / "adv_lime_values.npy")
-        adv_geoshap = np.load(RESULTS_DIR / "scaffold" / "adv_geoshap_values.npy")
+        adv_geoshapley = np.load(RESULTS_DIR / "scaffold" / "adv_geoshapley_flat.npy")
 
-        # Honest GeoSHAP lives in the scaffold folder (honest run includes GeoSHAP)
-        honest_geoshap_path = RESULTS_DIR / "scaffold" / "geoshap_values.npy"
-        if honest_geoshap_path.exists():
-            honest_geoshap = np.load(honest_geoshap_path)
+        honest_geoshapley_path = RESULTS_DIR / "explanations" / "geoshapley_flat.npy"
+        if honest_geoshapley_path.exists():
+            honest_geoshapley = np.load(honest_geoshapley_path)
         else:
-            honest_geoshap = None  # will suppress honest bars in GeoSHAP panel
+            honest_geoshapley = None
 
     except FileNotFoundError as e:
         print(f"Warning: scaffold attack files not found — skipping fig1 ({e})")
@@ -62,43 +67,44 @@ def plot_scaffold_attack(path: Path) -> None:
     def mean_abs(arr):
         return np.abs(arr).mean(axis=0)
 
-    # Build aligned honest arrays (length 11, zero for pct_black_latino)
-    def align_honest(honest_vals_10, honest_feats_10):
-        out = np.zeros(len(SCAFFOLD_FEATURES))
-        for i, fname in enumerate(honest_feats_10):
-            if fname in SCAFFOLD_FEATURES:
-                out[SCAFFOLD_FEATURES.index(fname)] = honest_vals_10[i]
+    def align_to_display(mean_vals, source_features):
+        out = np.zeros(len(DISPLAY_FEATURES))
+        for i, fname in enumerate(source_features):
+            if fname in DISPLAY_FEATURES:
+                out[DISPLAY_FEATURES.index(fname)] = mean_vals[i]
         return out
 
-    honest_shap_imp   = align_honest(mean_abs(honest_shap), honest_features)
-    honest_lime_imp   = align_honest(mean_abs(honest_lime), honest_features)
+    # SHAP/LIME alignment (10 honest → 12 display, 11 adv → 12 display)
+    honest_shap_imp = align_to_display(mean_abs(honest_shap), honest_features)
+    honest_lime_imp = align_to_display(mean_abs(honest_lime), honest_features)
+    adv_shap_imp = align_to_display(mean_abs(adv_shap), SCAFFOLD_FEATURES)
+    adv_lime_imp = align_to_display(mean_abs(adv_lime), SCAFFOLD_FEATURES)
 
-    # GeoSHAP honest: not saved by default; suppress if missing
-    if honest_geoshap is None:
-        honest_geoshap_imp = None
-    elif honest_geoshap.shape[1] == len(SCAFFOLD_FEATURES):
-        honest_geoshap_imp = mean_abs(honest_geoshap)
+    # GeoShapley alignment (flat arrays: non-geo features + geo_effect)
+    non_geo_honest = [f for f in honest_features if f not in ("UTM_X", "UTM_Y")]
+    honest_geo_feats = non_geo_honest + ["geo_effect"]
+    non_geo_scaffold = [f for f in SCAFFOLD_FEATURES if f not in ("UTM_X", "UTM_Y")]
+    adv_geo_feats = non_geo_scaffold + ["geo_effect"]
+
+    if honest_geoshapley is not None:
+        honest_geoshapley_imp = align_to_display(mean_abs(honest_geoshapley), honest_geo_feats)
     else:
-        honest_geoshap_imp = align_honest(mean_abs(honest_geoshap), honest_features)
+        honest_geoshapley_imp = None
+    adv_geoshapley_imp = align_to_display(mean_abs(adv_geoshapley), adv_geo_feats)
 
-    adv_shap_imp   = mean_abs(adv_shap)
-    adv_lime_imp   = mean_abs(adv_lime)
-    adv_geoshap_imp = mean_abs(adv_geoshap)
-
-    # Sort by honest SHAP importance; honest features define ordering
     sort_order = sorted(
-        range(len(SCAFFOLD_FEATURES)),
+        range(len(DISPLAY_FEATURES)),
         key=lambda i: honest_shap_imp[i],
-        reverse=False,   # ascending so top feature ends up at top of horizontal bar
+        reverse=False,
     )
-    feat_labels = [SCAFFOLD_FEATURES[i] for i in sort_order]
+    feat_labels = [DISPLAY_FEATURES[i] for i in sort_order]
 
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5), sharey=True)
+    fig, axes = plt.subplots(1, 3, figsize=(15, 6), sharey=True)
 
     datasets = [
-        ("SHAP Attack",    honest_shap_imp,    adv_shap_imp),
-        ("LIME Attack",    honest_lime_imp,     adv_lime_imp),
-        ("GeoSHAP Attack", honest_geoshap_imp,  adv_geoshap_imp),
+        ("SHAP Attack",       honest_shap_imp,        adv_shap_imp),
+        ("LIME Attack",       honest_lime_imp,         adv_lime_imp),
+        ("GeoShapley Attack", honest_geoshapley_imp,   adv_geoshapley_imp),
     ]
 
     for ax, (title, honest_imp, adv_imp) in zip(axes, datasets):
@@ -251,7 +257,7 @@ def plot_robustness_heatmap(path: Path) -> None:
         return
 
     levels    = ["random", "medoid", "spatial"]
-    explainers = ["TreeSHAP", "KernelSHAP", "GeoSHAP", "LIME"]
+    explainers = ["TreeSHAP", "KernelSHAP", "GeoShapley", "LIME"]
 
     matrix = np.array(
         [[results[level][explainer] for explainer in explainers] for level in levels]

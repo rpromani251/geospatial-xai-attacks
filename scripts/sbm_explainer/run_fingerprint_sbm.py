@@ -61,6 +61,8 @@ from src.utils.io import load_model
 from src.utils.paths import CONFIGS_DIR, PROCESSED_DATA_DIR, RESULTS_DIR
 
 
+import os
+
 FEATURE = "sqft_lot"
 K = 4
 K_NEIGHBOURS = 8
@@ -72,6 +74,13 @@ N_GAUSS = 20           # number of Gaussian perturbations per point
 GAUSS_SIGMA_FRAC = 0.1 # δ_j ~ N(0, 0.1 · σ_j)
 TARGETED_GRID_QUANTILES = [0.10, 0.25, 0.50, 0.745, 0.755, 0.90, 0.99]
 VARIANTS = ("gaussian", "targeted")
+
+# ── Penalty override (for Q1 penalty sweep; see followup_directions.md) ─────
+# Set FINGERPRINT_PENALTY=0.10 (or 0.30, 0.50) to override the default
+# penalty from scaffold.yaml. Each override run writes to a distinct
+# output directory so results don't overwrite each other.
+_PENALTY_OVERRIDE_ENV = os.environ.get("FINGERPRINT_PENALTY", "").strip()
+PENALTY_OVERRIDE = float(_PENALTY_OVERRIDE_ENV) if _PENALTY_OVERRIDE_ENV else None
 
 
 # ── Encoders ────────────────────────────────────────────────────────────────
@@ -235,7 +244,15 @@ def build_scaffolds(X_train_np, y_train_vals, feature_names, bias_col_idx,
 
 
 def main():
-    out_dir = RESULTS_DIR / "sbm_explainer" / "fingerprint_sbm"
+    # Output directory: default is the canonical fingerprint_sbm dir. If
+    # a penalty override is active, use a per-penalty subdirectory so
+    # the canonical artifacts aren't overwritten by the sweep run.
+    if PENALTY_OVERRIDE is not None:
+        tag = f"p{PENALTY_OVERRIDE:.2f}".replace(".", "_")
+        out_dir = RESULTS_DIR / "sbm_explainer" / f"fingerprint_sbm_{tag}"
+        print(f"OUTPUT DIR (penalty override): {out_dir}")
+    else:
+        out_dir = RESULTS_DIR / "sbm_explainer" / "fingerprint_sbm"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     with open(CONFIGS_DIR / "scaffold.yaml") as f:
@@ -252,8 +269,12 @@ def main():
     bias_col_idx = feature_names.index(FEATURE)
     base_feature_indices = [feature_names.index(f) for f in baseline_features]
     threshold = float(np.percentile(df_sweep[FEATURE].values, 75))
-    penalty = cfg["biased_model"]["penalty"]
-    print(f"bias={FEATURE}  P75={threshold:.1f}  penalty={penalty}")
+    penalty = PENALTY_OVERRIDE if PENALTY_OVERRIDE is not None else cfg["biased_model"]["penalty"]
+    if PENALTY_OVERRIDE is not None:
+        print(f"bias={FEATURE}  P75={threshold:.1f}  penalty={penalty}  "
+              f"(OVERRIDE from FINGERPRINT_PENALTY env var; default was {cfg['biased_model']['penalty']})")
+    else:
+        print(f"bias={FEATURE}  P75={threshold:.1f}  penalty={penalty}")
 
     X_train, X_test, y_train, y_test = train_test_split(
         df_sweep, y, test_size=cfg["data"]["test_size"],

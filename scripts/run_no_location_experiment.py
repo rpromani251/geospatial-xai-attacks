@@ -1,4 +1,4 @@
-"""Train XGBoost without UTM features, explain with TreeSHAP/KernelSHAP/GeoSHAP/LIME."""
+"""Train XGBoost without UTM features, explain with TreeSHAP/KernelSHAP/LIME."""
 
 import sys
 from pathlib import Path
@@ -15,7 +15,6 @@ sys.path.insert(0, str(ROOT))
 from src.data.load_housing import load_housing
 from src.models.train import train_xgboost
 from src.explainers.shap_runner import explain_shap, explain_treeshap
-from src.explainers.geoshap_runner import explain_geoshap
 from src.explainers.lime_runner import explain_lime
 from src.utils.io import save_model, save_metrics
 from src.utils.paths import CONFIGS_DIR, RESULTS_DIR
@@ -35,26 +34,19 @@ def main():
     )
     print(f"Loaded data: {X.shape[0]} samples, {X.shape[1]} features")
 
-    # 3. Load UTM coords separately (same dataset, same row order)
-    coords, _ = load_housing(
-        dataset=config["data"]["dataset"],
-        feature_columns=["UTM_X", "UTM_Y"],
-        target_column=config["target"],
-    )
-
-    # 4. Train/test split — coords split with same seed so indices align
-    X_train, X_test, y_train, y_test, coords_train, coords_test = train_test_split(
-        X, y, coords,
+    # 3. Train/test split
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y,
         test_size=config["data"]["test_size"],
         random_state=config["data"]["random_state"],
     )
     print(f"Train: {len(X_train)}, Test: {len(X_test)}")
 
-    # 5. Train
+    # 4. Train
     model = train_xgboost(X_train, y_train, config["model"])
     print("Model trained.")
 
-    # 6. Evaluate
+    # 5. Evaluate
     y_pred = model.predict(X_test)
     metrics = {
         "mse": float(mean_squared_error(y_test, y_pred)),
@@ -66,13 +58,12 @@ def main():
     }
     print(f"Results: MSE={metrics['mse']:.4f}, R²={metrics['r2']:.4f}, MAE={metrics['mae']:.4f}")
 
-    # 7. Subset for explanation
+    # 6. Subset for explanation
     n_explain = 200
     X_explain = X_test.iloc[:n_explain]
-    coords_explain = coords_test.iloc[:n_explain]
     print(f"Explaining {len(X_explain)} test points, {X_explain.shape[1]} features")
 
-    # 8. Run explainers
+    # 7. Run explainers (no GeoShapley — model has no spatial coordinates)
     print("Running TreeSHAP...")
     tree_shap = explain_treeshap(model, X_explain)
     print(f"  TreeSHAP values shape: {tree_shap.shape}")
@@ -81,18 +72,11 @@ def main():
     kernel_shap = explain_shap(model, X_train, X_explain, n_background=100)
     print(f"  KernelSHAP values shape: {kernel_shap.shape}")
 
-    print("Running GeoSHAP...")
-    geo_shap = explain_geoshap(
-        model, X_train, coords_train.values, X_explain, coords_explain.values,
-        k=100, verbose=True,
-    )
-    print(f"  GeoSHAP values shape: {geo_shap.shape}")
-
     print("Running LIME...")
     lime_vals = explain_lime(model, X_train, X_explain, num_samples=500, random_state=42)
     print(f"  LIME values shape: {lime_vals.shape}")
 
-    # 9. Save outputs
+    # 8. Save outputs
     out_dir = RESULTS_DIR / "no_location"
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -100,22 +84,20 @@ def main():
     save_metrics(metrics, out_dir / "metrics.json")
     np.save(out_dir / "treeshap_values.npy", tree_shap)
     np.save(out_dir / "kernelshap_values.npy", kernel_shap)
-    np.save(out_dir / "geoshap_values.npy", geo_shap)
     np.save(out_dir / "lime_values.npy", lime_vals)
     np.save(out_dir / "feature_names.npy", np.array(X_explain.columns.tolist()))
     np.save(out_dir / "test_indices.npy", X_explain.index.values)
     print(f"Saved to {out_dir}/")
 
-    # 10. Ranking table
+    # 9. Ranking table
     feature_names = X_explain.columns.tolist()
     mean_tree = np.abs(tree_shap).mean(axis=0)
     mean_kernel = np.abs(kernel_shap).mean(axis=0)
-    mean_geo = np.abs(geo_shap).mean(axis=0)
     mean_lime = np.abs(lime_vals).mean(axis=0)
 
     sort_order = np.argsort(mean_tree)[::-1]
 
-    header = f"{'feature':>15} {'TreeSHAP':>10} {'KernelSHAP':>12} {'GeoSHAP':>10} {'LIME':>10}"
+    header = f"{'feature':>15} {'TreeSHAP':>10} {'KernelSHAP':>12} {'LIME':>10}"
     print("\nMean absolute feature importance across explainers:")
     print(header)
     print("-" * len(header))
@@ -123,9 +105,8 @@ def main():
         name = feature_names[idx]
         t = mean_tree[idx]
         k = mean_kernel[idx]
-        g = mean_geo[idx]
         l = mean_lime[idx]
-        print(f"{name:>15} {t:>10.4f} {k:>12.4f} {g:>10.4f} {l:>10.4f}")
+        print(f"{name:>15} {t:>10.4f} {k:>12.4f} {l:>10.4f}")
 
 
 if __name__ == "__main__":

@@ -17,7 +17,7 @@ Depends on what you're trying to do.
    §3.1). Long but the spine of the theoretical argument.
 
 ### If you want to verify a specific number
-- `results.md` is a registry of experiments with artifact pointers.
+- `../../docs/experiments_index.md` is the master experiment registry.
   Every Δ / NMI / C-ratio in the docs traces back to a JSON file
   under `results/sbm_explainer/`.
 
@@ -40,6 +40,28 @@ Depends on what you're trying to do.
   E[n_flips]. Kept only to show that 3-seed CIs overlap; sweep is
   otherwise inconclusive.
 
+## §2 Explanation Outputs
+
+The three Bayesian explanation outputs promised in the proposal §2 have
+been extracted from the housing Gauss+LIME run (sqft_lot, n=200, K=4).
+Full narrative, headline numbers, and interpretation in:
+
+- **`pex_outputs_summary.md`** — ≤2-page narrative covering all three
+  outputs and their interpretation as scaffold-attack evidence.
+
+Artifact directory: `results/sbm_explainer/pex_outputs/`
+
+Figures:
+- `pex_outputs/figures/fig_psi_heatmap.png` — Ψ_{h,h'} posterior mean
+  and CI-width heatmaps. Layers split cleanly: high sqft_lot → blocks
+  1–2 (ψ = 0.57 / 0.36); low sqft_lot → blocks 3–2 (ψ = 0.59 / 0.29).
+- `pex_outputs/figures/fig_coclust_matrix.png` — 20×20 pairwise
+  co-clustering posterior (sorted by layer). Within-layer mean = 0.362,
+  across-layer mean = 0.241, ratio = 1.50.
+- `pex_outputs/figures/fig_node_uncertainty.png` — per-node entropy bar
+  chart + stacked block-posterior bar chart. Entropy range [0.00, 0.68]
+  nats; 11/20 subset nodes confidently assigned (H < 0.001).
+
 ## Mechanism in one paragraph
 
 Scaffold predict_proba on real x_i routes to f_biased (anchor) and on
@@ -53,3 +75,7 @@ the conditional prior. Three tests confirm the mechanism: K-sweep
 (dilute anchor, force case 3), tanh-sweep (vary innocuous Lipschitz
 across cases 1 → 3), and four-dataset replication. See
 cosine-expression.md §3.1 for the unified statement.
+
+## §2 + Block Outputs on Slack Suite
+
+pEx-SBM §2 primitives (Ψ matrix, co-clustering posterior, per-node uncertainty) and block characterizations run on COMPAS (Gauss+SHAP σ=0.1), German Credit (Gauss+SHAP σ=1.0), and CC psi_two (Gauss+LIME σ=1.0). Cross-dataset summary at `docs/sbm_explainer/slack_suite_summary.md`. Per-dataset artifacts at `results/sbm_explainer/slack_outputs/{compas,german,cc_psi_two}/`. Cross-dataset Ψ grid at `docs/figures/fig_slack_suite_psi_grid.png`.

@@ -1,0 +1,57 @@
+data:
+  dataset: "flood_zone"
+  test_size: 0.2
+  random_state: 42
+
+features:
+  - bathrooms
+  - sqft_living
+  - sqft_lot
+  - grade
+  - condition
+  - waterfront
+  - view
+  - age
+  - in_floodplain
+  - UTM_X
+  - UTM_Y
+
+safe_features:
+  - bathrooms
+  - sqft_living
+  - sqft_lot
+  - grade
+  - condition
+  - waterfront
+  - view
+  - age
+
+biased_model:
+  trigger_column: "in_floodplain"
+  penalty: 0.20
+  threshold: 0.5
+
+innocuous_model:
+  n_estimators: 300
+  max_depth: 5
+  learning_rate: 0.1
+  random_state: 42
+
+lime_ood:
+  perturbation_std: 0.3
+  perturbation_multiplier: 30
+  rf_estimators: 100
+
+shap_ood:
+  n_kmeans: 10
+  perturbation_multiplier: 10
+  n_samples: 20000
+  rf_estimators: 100
+
+explanation:
+  n_explain: 200
+  shap_n_background: 100
+  lime_num_samples: 500
+  lime_random_state: 42
+
+target: log_price

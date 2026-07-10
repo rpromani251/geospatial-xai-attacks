@@ -1,4 +1,4 @@
-"""Generate KernelSHAP, LIME, and GeoSHAP explanations for baseline model."""
+"""Generate KernelSHAP, LIME, and GeoShapley explanations for baseline model."""
 
 import sys
 from pathlib import Path
@@ -13,7 +13,7 @@ sys.path.insert(0, str(ROOT))
 from src.data.load_housing import load_housing
 from src.explainers.shap_runner import explain_shap
 from src.explainers.lime_runner import explain_lime
-from src.explainers.geoshap_runner import explain_geoshap
+from src.explainers.geoshap_runner import explain_geoshapley, geoshapley_to_flat, save_geoshapley
 from src.utils.io import load_model
 from src.utils.paths import CONFIGS_DIR, RESULTS_DIR
 
@@ -29,19 +29,14 @@ def main():
     model = load_model(ROOT / config["model_path"])
     print("Model loaded.")
 
-    # 3. Load data with same split as baseline; load UTM coords separately for GeoSHAP
+    # 3. Load data with same split as baseline
     X, y = load_housing(
         dataset=baseline_config["data"]["dataset"],
         feature_columns=baseline_config["features"],
         target_column=baseline_config["target"],
     )
-    coords, _ = load_housing(
-        dataset=baseline_config["data"]["dataset"],
-        feature_columns=["UTM_X", "UTM_Y"],
-        target_column=baseline_config["target"],
-    )
-    X_train, X_test, _, _, coords_train, coords_test = train_test_split(
-        X, y, coords,
+    X_train, X_test, _, _ = train_test_split(
+        X, y,
         test_size=baseline_config["data"]["test_size"],
         random_state=baseline_config["data"]["random_state"],
     )
@@ -49,7 +44,6 @@ def main():
     # 4. Subset test points
     n_explain = config["n_explain"]
     X_explain = X_test.iloc[:n_explain]
-    coords_explain = coords_test.iloc[:n_explain]
     print(f"Explaining {len(X_explain)} test points, {X_explain.shape[1]} features")
 
     # 5. KernelSHAP
@@ -69,14 +63,12 @@ def main():
     )
     print(f"  LIME values shape: {lime_values.shape}")
 
-    # 7. GeoSHAP — honest baseline using k=100 geographic nearest neighbors as background
-    print("Running GeoSHAP (k=100 geographic background)...")
-    geoshap_values = explain_geoshap(
-        model, X_train, coords_train.values,
-        X_explain, coords_explain.values,
-        k=100,
-    )
-    print(f"  GeoSHAP values shape: {geoshap_values.shape}")
+    # 7. GeoShapley — decomposes into primary, geo, and interaction effects
+    print("Running GeoShapley...")
+    geoshapley_results = explain_geoshapley(model, X_train, X_explain)
+    geo_flat = geoshapley_to_flat(geoshapley_results)
+    print(f"  GeoShapley primary shape: {geoshapley_results.primary.shape}")
+    print(f"  GeoShapley flat shape: {geo_flat.shape}")
 
     # 8. Save
     out_dir = RESULTS_DIR / "explanations"
@@ -84,13 +76,15 @@ def main():
 
     np.save(out_dir / "shap_values.npy", shap_values)
     np.save(out_dir / "lime_values.npy", lime_values)
-    np.save(out_dir / "geoshap_values.npy", geoshap_values)
+    save_geoshapley(geoshapley_results, out_dir)
     np.save(out_dir / "test_indices.npy", X_explain.index.values)
     np.save(out_dir / "feature_names.npy", np.array(X_explain.columns.tolist()))
     print(f"Saved to {out_dir}/")
 
     # 9. Summary
     feature_names = X_explain.columns.tolist()
+    non_geo_names = feature_names[:-2]  # exclude UTM_X, UTM_Y
+
     print("\nTop features by mean |SHAP|:")
     mean_shap = np.abs(shap_values).mean(axis=0)
     for idx in np.argsort(mean_shap)[::-1]:
@@ -101,10 +95,11 @@ def main():
     for idx in np.argsort(mean_lime)[::-1]:
         print(f"  {feature_names[idx]:>15}: {mean_lime[idx]:.4f}")
 
-    print("\nTop features by mean |GeoSHAP|:")
-    mean_geo = np.abs(geoshap_values).mean(axis=0)
+    print("\nTop features by mean |GeoShapley| (primary + geo + interaction):")
+    mean_geo = np.abs(geo_flat).mean(axis=0)
+    geo_names = non_geo_names + ["geo_effect"]
     for idx in np.argsort(mean_geo)[::-1]:
-        print(f"  {feature_names[idx]:>15}: {mean_geo[idx]:.4f}")
+        print(f"  {geo_names[idx]:>15}: {mean_geo[idx]:.4f}")
 
 
 if __name__ == "__main__":

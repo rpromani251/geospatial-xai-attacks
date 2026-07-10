@@ -105,7 +105,7 @@ def main():
         results = json.load(f)
 
     levels = ["random", "medoid", "spatial"]
-    explainers = ["TreeSHAP", "KernelSHAP", "GeoSHAP", "LIME"]
+    explainers = ["TreeSHAP", "KernelSHAP", "GeoShapley", "LIME"]
 
     plot_heatmap(results, levels, explainers, fig_dir / "heatmap.png")
     plot_trustworthiness(trust_labels, knn_labels, fig_dir / "trustworthiness_dist.png")

@@ -3,24 +3,30 @@
 ## Purpose
 UROP research project: adversarial and manifold-aware robustness analyses for explainability methods (LIME, SHAP, GeoShapley) in geospatial contexts. See `task_summary.md` (in vault) for the full 3-part framework design.
 
+## Start-here reading for a new reader / Claude session
+- `../../total_summary.md` — vault-side catalog of every experiment, file, and artifact.
+- `../../Notes/intuition_guide.md` — vault-side teaching walkthrough (~30 pages, runnables included).
+- `project_summary.md` — authoritative numeric reference (this repo).
+- `docs/experiments_index.md` — per-experiment index (merged from prior `roadmap.md` + `experiment_registry.md`).
+- `docs/sbm_explainer/README.md` → `summary_apr22.md` → `cosine-expression.md` — the active SBM thread.
+
 ## Status
-**Active thread (as of 2026-04-22):** SBM-as-explainer — rung-3
-behavioral fingerprint + finite-K pEx SBM as a Slack-style scaffold-
-attack detector. Four-dataset replication complete (housing, Slack
-COMPAS/German/CC). Mechanism identified (anchor-dominance erosion,
-unified as m-field variability + layer-misalignment). K-sweep and
-tanh-sweep confirm mechanism; sinusoidal-sign Lipschitz sweep retired.
-Thursday April 23 meeting with Peng to decide paper shape
-(workshop/TMLR vs NeurIPS main).
+**As of 2026-04-25:** Full `run_all.sh` pipeline completed successfully
+(Exps 1–12). All results regenerated post-GeoShapley migration.
+
+**SBM-as-explainer thread:** Rung-3 behavioral fingerprint + finite-K
+pEx SBM as scaffold-attack detector. Four-dataset replication complete
+(housing, Slack COMPAS/German/CC). Mechanism identified (anchor-dominance
+erosion, unified as m-field variability + layer-misalignment). K-sweep
+and tanh-sweep confirm mechanism; sinusoidal-sign Lipschitz sweep retired.
+Peng meeting (April 23) done — paper shape TBD.
 
 **Entry point for resume:** `docs/sbm_explainer/README.md`, then
-`docs/sbm_explainer/day_log_apr22.md` for the narrative of today's
-work.
+`docs/sbm_explainer/day_log_apr22.md` for narrative context.
 
-**All 6 original geospatial steps complete:** baseline XGBoost
-(R²=0.89), SHAP+LIME+GeoSHAP explainers, adversarial scaffold attack,
-spatially-aware neighborhoods, 3×5 robustness matrix, k-NN
-trustworthiness, worst-case x* sweep.
+**All 12 experiments complete.** Original 6-step geospatial pipeline +
+Moran's I thread (Exps 7–8) + non-autocorrelated bias attempts (Exps
+10–11) + SBM thread (Exp 9) + spectrum sweep (Exp 12).
 
 ## Project Rules
 - Experiment code goes in `src/`
@@ -44,12 +50,12 @@ configs/         # YAML config files
 data/            # raw/, interim/, processed/ (git-ignored)
 notebooks/       # Exploratory notebooks
 results/         # Experiment outputs (git-ignored)
-docs/            # Roadmap, experiment registry
+docs/            # Experiments index, narrative, SBM-explainer thread
 papers/          # Cloned reference repos (git-ignored)
 ```
 
 ## Dependencies
-numpy, pandas, scikit-learn, pyyaml, matplotlib, lime, shap, xgboost, geopandas, shapely, pyproj, jupyter
+numpy, pandas, scikit-learn, pyyaml, matplotlib, lime, shap, xgboost, geoshapley, geopandas, shapely, pyproj, jupyter
 
 ## Implementation Plan
 
@@ -81,17 +87,17 @@ numpy, pandas, scikit-learn, pyyaml, matplotlib, lime, shap, xgboost, geopandas,
 - Innocuous model R²=0.64 (8 safe features), biased model penalty=0.3 log_price on tracts >25% minority
 - Visualizations: `scripts/plot_results.py` → 2×2 summary figure + individual honest-vs-adversarial bar charts in `results/figures/`
 
-## Next Steps (SBM-as-explainer thread, 2026-04-22)
-- [ ] Thursday meeting with Peng (2026-04-23): three questions — (1) lead finite-K Δ or H-DP refinement story; (2) is four-dataset + K-sweep enough for workshop, or do we need a formal recovery-probability bound for NeurIPS-main; (3) β-sweep as robustness appendix or drop it
+## Next Steps (2026-04-25)
+- [ ] Paper shape decision post-Peng meeting: workshop/TMLR vs NeurIPS main
 - [ ] If NeurIPS track: derive plain-SBM modular-recovery-probability bound as a function of (m-variability, K, layer-alignment). Significant work
-- [ ] Penalty sweep (scaffold penalty 0.10/0.30/0.50) to confirm Δ robustness
+- [ ] Penalty sweep (scaffold penalty 0.10/0.30/0.50) to confirm Δ robustness — partial results in `results/sbm_explainer/fingerprint_sbm_p{0_10,0_30,0_50}/`
 - [ ] Predictive test on H-DP gate-boundary clusters (do they have higher adversarial sensitivity on held-out?)
-
-## Prior steps (original geospatial plan — complete)
 - [ ] Extend worst-case x* sweep to LIME (currently TreeSHAP-only; LIME is expensive — consider subsampling)
-- [ ] Increase N_EXPLAIN_GEO in robustness experiment (currently 20/50 for GeoSHAP to contain cost)
-- [ ] Add honest GeoSHAP to baseline explanations if plot_paper_figures.py fallback is not acceptable
-- [ ] Statistical significance testing (N≥5 runs per condition) — done for finite-K Gauss+LIME (Probe 2: Δ=0.043±0.018, p=1.8e-9) and tanh-β knee (β=5 Δ=+0.056, 95% CI [+0.031, +0.080])
+
+## Completed milestones
+- [x] GeoShapley migration (2026-04-24): all scripts updated, results regenerated via `run_all.sh` (2026-04-25)
+- [x] Statistical significance testing — done for finite-K Gauss+LIME (Probe 2: Δ=0.043±0.018, p=1.8e-9) and tanh-β knee (β=5 Δ=+0.056, 95% CI [+0.031, +0.080])
+- [x] Peng meeting (2026-04-23)
 
 ## Interpretation Notes
 - "Non-adversarial robustness" is evaluation, not attack
@@ -99,4 +105,4 @@ numpy, pandas, scikit-learn, pyyaml, matplotlib, lime, shap, xgboost, geopandas,
 - GeoShapley should not be assumed to solve manifold issues without explicit verification
 
 ## Experiment Logging Convention
-For each experiment record: objective, dataset, model, explainer, perturbation/attack type, config path, output path, status, key observations. Formalize later in `docs/experiment_registry.md`.
+For each experiment record: objective, dataset, model, explainer, perturbation/attack type, config path, output path, status, key observations. Canonical index lives in `docs/experiments_index.md` (merged from former `roadmap.md` + `experiment_registry.md`).

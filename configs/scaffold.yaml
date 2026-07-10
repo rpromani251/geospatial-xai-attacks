@@ -12,9 +12,9 @@ features:
   - waterfront
   - view
   - age
+  - pct_black_latino
   - UTM_X
   - UTM_Y
-  - pct_black_latino
 
 safe_features:
   - bathrooms

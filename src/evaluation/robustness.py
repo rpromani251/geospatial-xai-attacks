@@ -80,6 +80,13 @@ def ensemble_attribution(attrs_dict):
         ensemble_rank += weights[i] * ranks[e]
 
     # Step 4: sign-disagreement penalty (lambda = 0.15)
+    # Rank semantics: 1 = most important, N = least important. Final
+    # importance is 1 / ensemble_rank (Step 5), so LARGER rank → lower
+    # importance.  Disagreement = the feature should be penalized, i.e.
+    # rank number should INCREASE.  Original version divided rank by
+    # (1 + lam) equivalents via `*= (1 - lam)`, which made the rank
+    # number SMALLER → importance score LARGER → disagreement features
+    # were boosted instead of penalized.  Fixed 2026-04-23.
     lam = 0.15
     sign_matrix = np.array([
         np.sign(attrs_dict[e] + 1e-12) for e in explainer_names
@@ -89,7 +96,7 @@ def ensemble_attribution(attrs_dict):
     majority_sign = np.sign(sign_matrix.sum(axis=0) + 1e-12)
     disagreements = (sign_matrix != majority_sign).sum(axis=0)
     disagree_mask = disagreements > (n_explainers / 2)
-    ensemble_rank[disagree_mask] *= (1 - lam)
+    ensemble_rank[disagree_mask] *= (1 + lam)  # penalize: rank number ↑, importance ↓
 
     # Step 5: convert ranks to importance scores, normalize
     scores = 1.0 / ensemble_rank

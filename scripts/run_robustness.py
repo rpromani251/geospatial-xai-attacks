@@ -1,4 +1,4 @@
-"""Run the 3x4 robustness analysis: 3 neighborhood levels x 4 explainers."""
+"""Run the 3x5 robustness analysis: 3 neighborhood levels x 5 explainers."""
 
 import sys
 import json
@@ -27,7 +27,7 @@ from src.evaluation.robustness import (
     predict_trustworthiness_knn,
 )
 from src.explainers.shap_runner import explain_treeshap, explain_shap
-from src.explainers.geoshap_runner import explain_geoshap
+from src.explainers.geoshap_runner import explain_geoshapley, geoshapley_to_flat
 from src.explainers.lime_runner import explain_lime
 from src.data.load_housing import load_housing
 from src.utils.io import load_model, save_metrics
@@ -41,12 +41,13 @@ def main():
     model = load_model(RESULTS_DIR / "baseline" / "model.pkl")
     print("Baseline model loaded.")
 
-    # 2. Load data: 10 features (incl UTM_X, UTM_Y) + UTM coords separately
+    # 2. Load data
     X, y = load_housing(
         dataset=config["data"]["dataset"],
         feature_columns=config["features"],
         target_column=config["target"],
     )
+    # Coords loaded separately for spatial neighborhood generation
     coords, _ = load_housing(
         dataset=config["data"]["dataset"],
         feature_columns=["UTM_X", "UTM_Y"],
@@ -61,30 +62,24 @@ def main():
     )
 
     # 4. Config
-    N_EXPLAIN = 50        # test points to explain
-    N_NEIGHBORS = 50      # neighbors per level per point
-    # GeoSHAP requires a per-point KernelSHAP call for every neighbor, making it
-    # ~50× slower than TreeSHAP. We therefore limit GeoSHAP to the first 20 test
-    # points and 20 neighbors. GeoSHAP rho values in the results matrix are means
-    # over this reduced sample (n=20), while all other explainers use the full n=50.
-    # This should be noted when comparing GeoSHAP against other columns.
-    N_EXPLAIN_GEO = 20
-    N_NEIGHBORS_GEO = 20
+    N_EXPLAIN = 50
+    N_NEIGHBORS = 100
 
     X_explain = X_test.iloc[:N_EXPLAIN]
     coords_explain = coords_test.iloc[:N_EXPLAIN]
 
     levels = ["random", "medoid", "spatial"]
     # 5th column is rank-weighted Ensemble of TreeSHAP + KernelSHAP + LIME
-    # (GeoSHAP excluded from ensemble because it is only computed for N_EXPLAIN_GEO points)
-    explainers = ["TreeSHAP", "KernelSHAP", "GeoSHAP", "LIME", "Ensemble"]
+    # (GeoShapley excluded from ensemble because it has different output structure)
+    explainers = ["TreeSHAP", "KernelSHAP", "GeoShapley", "LIME", "Ensemble"]
     feature_names = list(X.columns)
 
-    # 5. For each test point i, for each level l:
-    #    a. Generate n neighbors
-    #    b. Filter (keep |pred_diff| < 0.15)
-    #    c. For each explainer, compute attribution for original + all neighbors
-    #    d. Compute Spearman rho and store
+    # Create one GeoShapley explainer with global background for all points
+    from geoshapley import GeoShapleyExplainer
+    geo_background = X_train.sample(n=100, random_state=42)
+    geo_explainer = GeoShapleyExplainer(
+        predict_f=model.predict, background=geo_background.values, g=2
+    )
 
     # shape: (N_EXPLAIN, 3, 5) — 5th column = Ensemble
     rho_matrix = np.full((N_EXPLAIN, 3, 5), np.nan)
@@ -109,7 +104,7 @@ def main():
                 neighbors = generate_neighbors_medoid(
                     X_ref, X_train, n=N_NEIGHBORS, random_state=i
                 )
-            else:  # spatial
+            else:  # spatial — Gaussian noise on coordinates only
                 neighbors = generate_neighbors_spatial(
                     X_ref, X_train, coords_ref, coords_train.values,
                     n=N_NEIGHBORS, random_state=i,
@@ -135,22 +130,12 @@ def main():
             nbr_kernel = kernel_all[1:]
             rho_matrix[i, l_idx, 1] = spearman_robustness(ref_kernel, nbr_kernel)
 
-            # GeoSHAP — only for i < N_EXPLAIN_GEO, reduced neighbors
-            if i < N_EXPLAIN_GEO:
-                nbrs_geo = neighbors.iloc[:N_NEIGHBORS_GEO]
-                X_combined_geo = pd.concat([X_ref_df, nbrs_geo], ignore_index=True)
-                coords_combined_geo = np.vstack([
-                    coords_ref.reshape(1, 2),
-                    coords_ref.reshape(1, 2).repeat(len(nbrs_geo), axis=0),
-                ])
-                geo_all = explain_geoshap(
-                    model, X_train, coords_train.values,
-                    X_combined_geo, coords_combined_geo,
-                    k=50, verbose=False,
-                )
-                ref_geo = geo_all[0]
-                nbr_geo = geo_all[1:]
-                rho_matrix[i, l_idx, 2] = spearman_robustness(ref_geo, nbr_geo)
+            # GeoShapley — use global background, explain batch
+            geo_results = geo_explainer.explain(X_combined, n_jobs=-1)
+            geo_flat = geo_results.geoshap_to_shap()
+            ref_geo = geo_flat[0]
+            nbr_geo = geo_flat[1:]
+            rho_matrix[i, l_idx, 2] = spearman_robustness(ref_geo, nbr_geo)
 
             # LIME
             lime_ref = explain_lime(
@@ -172,13 +157,11 @@ def main():
         results[level] = {}
         for e_idx, exp in enumerate(explainers):
             vals = rho_matrix[:, l_idx, e_idx]
-            if exp == "GeoSHAP":
-                vals = vals[:N_EXPLAIN_GEO]  # only valid entries
             valid = vals[~np.isnan(vals)]
             results[level][exp] = float(np.mean(valid)) if len(valid) > 0 else float("nan")
 
     # 7. Print table
-    print("\n3x5 Robustness Matrix (mean Spearman rho) — GeoSHAP n=20, others n=50:")
+    print(f"\n3x5 Robustness Matrix (mean Spearman rho, N_NEIGHBORS={N_NEIGHBORS}):")
     header = f"{'':>12}" + "".join(f"{e:>12}" for e in explainers)
     print(header)
     print("-" * len(header))
@@ -206,13 +189,24 @@ def main():
             tree_ref_attrs,
             model.predict(X_explain).reshape(-1, 1),
         ])
+        valid_idx = np.where(valid_mask)[0]
+        rng = np.random.default_rng(42)
+        rng.shuffle(valid_idx)
+        n_train = max(int(0.7 * len(valid_idx)), 5)
+        train_idx = valid_idx[:n_train]
+        test_idx  = valid_idx[n_train:]
         knn_model = train_trustworthiness_knn(
-            knn_features[valid_mask],
-            spatial_tree_rhos[valid_mask],
+            knn_features[train_idx],
+            spatial_tree_rhos[train_idx],
         )
-        knn_preds = predict_trustworthiness_knn(knn_model, knn_features)
-        n_knn_robust = np.sum(knn_preds == "robust")
-        print(f"k-NN predicted robust: {n_knn_robust}/{N_EXPLAIN}")
+        knn_preds = np.array(["uncertain"] * N_EXPLAIN, dtype=object)
+        heldout_preds = predict_trustworthiness_knn(knn_model, knn_features[test_idx])
+        knn_preds[test_idx] = heldout_preds
+        n_knn_robust_heldout = int(np.sum(heldout_preds == "robust"))
+        print(
+            f"k-NN predicted robust (held-out {len(test_idx)} pts): "
+            f"{n_knn_robust_heldout}/{len(test_idx)}"
+        )
     else:
         knn_model = None
         knn_preds = labels

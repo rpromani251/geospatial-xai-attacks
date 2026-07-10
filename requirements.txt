@@ -8,5 +8,6 @@ pyproj
 xgboost
 lime
 shap
+geoshapley
 matplotlib
 jupyter

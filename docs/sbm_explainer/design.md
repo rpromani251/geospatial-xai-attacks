@@ -5,8 +5,118 @@
 > `src/sbm/pex_sbm.py`). Durante et al. (2025, arXiv:2410.10619) use
 > "pEx-SBM" for the **H-DP** two-level-DP variant with K inferred —
 > that is a different model and a future direction (Fix 4 in
-> `plain-sbm-poc.md` §15). When ambiguity matters we write "finite-K
+> `plain-sbm-poc.md` §15; now executed — see
+> `summary_apr22.md` §3). When ambiguity matters we write "finite-K
 > pEx" vs "H-DP pEx".
+
+---
+
+## The three-rung encoder ladder (read this first)
+
+This document's central design question is: **what representation
+(encoding) do you use for each test point before computing edge
+similarity for the SBM graph?** Three candidates were tried, in
+chronological order. Read them as a ladder — each rung reacts to why
+the previous one failed.
+
+### Rung 1 — SHAP / LIME attribution vectors
+
+**Encoding.** `e_i = SHAP(x_i)` or `LIME(x_i)` under the scaffolded
+model. A 10- or 11-dim vector of attribution scores per test point.
+
+**Rationale.** Explanations are the natural summary of a model; if
+the scaffold laundered the layer signal into proxy features, the
+attribution vectors should cluster by layer.
+
+**Result — null.** The SHAP/LIME attributions are **sanitized by the
+scaffold** (that's the whole point of the attack). The graph has
+near-zero layer-aligned edge structure — posterior C-ratio ≈ 1.01,
+plain NMI and pEx NMI both ≈ 0 to seed precision. This is "regime
+(b)" in the terminology of `plain-sbm-poc.md` §13.
+
+Six stress tests (§§9–13 of `plain-sbm-poc.md`) — α-sweep, γ-sweep,
+noisy-layer, subpop, held-out, penalty-sweep — all confirm Δ = 0 on
+rung-1 graphs.
+
+### Rung 2 — honest-booster leaf indices
+
+**Encoding.** For each test point, push it through the **honest**
+(not scaffolded) XGBoost booster. Collect leaf indices across all
+trees. The leaf-index vector is the encoding.
+
+**Rationale.** Raw computational path, no post-hoc smoothing. If
+the biased model and innocuous model use different decision paths,
+leaf indices should reflect it.
+
+**Result — null.** The encoder uses the *honest* booster, which
+has no gate. Its leaf-index patterns don't reflect the scaffold's
+routing. Δ = +0.005 — noise. The scaffolded model's leaves can't
+be extracted because the scaffold wraps two XGBoosters in a Python
+dispatch; there's no single "scaffold tree."
+
+### Rung 3 — behavioral fingerprints (the one that works)
+
+**Encoding.**
+
+```
+e_i = [ f_scaffold(x_i),
+        f_scaffold(x_i + δ_1),
+        f_scaffold(x_i + δ_2),
+        ...,
+        f_scaffold(x_i + δ_K) ]   ∈ ℝ^{K+1}
+```
+
+- First coordinate: the **anchor** — scaffold prediction on the real
+  test point (routed to the biased model by the OOD detector).
+- Next K coordinates: the **refinements** — scaffold predictions on
+  K Gaussian perturbations (routed to the innocuous model by the
+  OOD detector, *if* the detector is strict enough to reject all
+  perts).
+- δ_k ∼ N(0, σ² · diag(feat_std²)), σ = 0.1 (deliberately inside
+  the "definitely OOD" regime for a LIME detector trained at σ=0.3).
+
+**Why this works.** The scaffold's routing creates a characteristic
+fingerprint: one gate-exposed anchor + K gate-hidden refinements.
+Cosine-NN groups points that share **both** similar anchor offsets
+(determined by the layer via the biased-model penalty) and similar
+refinement profiles (determined by structural proxies that correlate
+with the layer). That structure aligns with the protected-attribute
+layer, and pEx-SBM amplifies the alignment through its per-layer
+Dirichlet prior.
+
+**Result — fires.** On housing Gauss+LIME, K=4, 200 nodes:
+- Plain NMI = 0.287, pEx NMI = **0.334**, **Δ = +0.048**
+- 20-seed CI [+0.017, +0.076], p = 1.8 × 10⁻⁹
+- Posterior C-ratio = 2.51 — middle regime, not saturated
+
+Replicates on 3 additional Slack datasets (COMPAS, German, CC) with
+Δ from +0.038 to +0.575. Mechanism: **anchor-dominance erosion**,
+derived in `cosine-expression.md` §3.1. Second mechanism axis
+(innocuous-Lipschitz sweep via tanh probe) confirms the same story.
+
+**Specifically a Slack-style scaffold-attack detector.** Probe 1
+(`run_ood_flip_probe.py`) shows the signal requires the scaffold's
+**routing mixture** (anchor biased + refinements innocuous) — not
+any single model. The fingerprint signature only appears when a
+strict OOD detector produces the partial mixture, which is exactly
+what a Slack attack needs to hide bias from its target explainer.
+
+### Summary table (headline cells, K=4, housing)
+
+| Rung | Encoder | log BF | Plain NMI | pEx NMI | Δ | C ratio |
+|---|---|---|---|---|---|---|
+| 1 | LIME attributions | +516 | 0.538 | 0.538 | +0.000 | 4.78 |
+| 1 | SHAP attributions | +356 | 0.095 | 0.099 | +0.004 | 1.10 |
+| 2 | honest-booster leaves | +117 | 0.121 | 0.126 | +0.005 | 1.33 |
+| 3 | Gauss fingerprint + LIME scaffold | **+145** | **0.287** | **0.334** | **+0.048** | **2.51** |
+| 3 | Gauss fingerprint + SHAP scaffold | −2 | 0.004 | 0.003 | −0.001 | 0.99 |
+| 3 | targeted fingerprint + LIME | +2 | 0.063 | 0.063 | 0.000 | 1.16 |
+| 3 | targeted fingerprint + SHAP | −3 | 0.012 | 0.012 | 0.000 | 1.01 |
+
+Full results in `encoder_ladder_results.md` (post-rename; formerly
+`results.md`).
+
+---
 
 ## Reframe
 
@@ -143,4 +253,4 @@ confirmation of the likelihood-structural diagnosis.
 | `scripts/sbm_explainer/run_activation_diagnostics.py` | Fix 3 + coclustering diagnostic on activation graph |
 | `scripts/sbm_explainer/run_activation_battery.py` | plain + pEx fits, blocks_vs_layer summary |
 | `docs/sbm_explainer/design.md` | this doc |
-| `docs/sbm_explainer/results.md` | written after diagnostics run |
+| `docs/sbm_explainer/encoder_ladder_results.md` | written after diagnostics run |

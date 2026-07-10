@@ -1,20 +1,77 @@
 # SBM and pEx-SBM: Attack-Detection from Explanation Graphs
 
 _End-to-end documentation of the plain-SBM proof-of-concept, the
-partially-exchangeable extension (pEx-SBM), all stress tests, and the
-structural diagnosis of why pEx cannot differ from plain in the current
-formulation._
+partially-exchangeable extension (pEx-SBM), and all stress tests._
 
 Last updated: 2026-04-22 (day before Thursday meeting).
 
-> **Naming convention.** Throughout this document "pEx" and "pEx-SBM" refer
-> to our **finite-K Dirichlet-Categorical** variant (K fixed, per-layer
-> Dirichlet($\gamma$) over the same K blocks, integrated out against the
-> Beta-Bernoulli edge likelihood — §6). This is **not** the pEx-SBM of
-> Durante et al. (2025, arXiv:2410.10619), which is the **H-DP pEx** (two-level
-> Dirichlet Process, K inferred, three-route Gibbs sampler, `pex-sbm.R` in
-> `papers/pexsbm/`). Every null result in §§9–14 is specific to our finite-K
-> variant. H-DP pEx may behave differently and is queued as Fix 4 (§15).
+---
+
+## ⚠️ READ FIRST — retraction notice (2026-04-22)
+
+**This document's §§13d–14 conclude "finite-K pEx is structurally
+unable to differ from plain SBM." That claim has been RETRACTED.**
+
+The claim was drawn from experiments that all used **rung-1**
+attribution-vector graphs (SHAP/LIME attributions as the node
+encoding). Those graphs are **regime (b)** — posterior C-ratio
+≈ 1.0–1.1, meaning the posterior carries no layer-aligned structure
+for the prior to act on. The null result was graph-specific, not
+structural.
+
+A third encoder — **rung-3 behavioral fingerprints**, introduced on
+2026-04-22 — produces middle-regime graphs (C ratio ≈ 2.5) on the
+same housing + scaffold pipeline. On those graphs the finite-K pEx
+prior **does** move the posterior: Δ = +0.048 on housing Gauss+LIME
+(95% CI [+0.017, +0.076], p = 1.8 × 10⁻⁹, 20 seeds). The effect
+replicates across three additional Slack datasets (COMPAS, German,
+Communities & Crime) with Δ from +0.038 to +0.575.
+
+**Corrected statement**: finite-K pEx differs from plain only on
+graphs whose posterior has unsaturated layer awareness (C-ratio ∈
+[1, 3]). Rung-1 attribution graphs don't produce such graphs in
+general; rung-3 fingerprint-under-scaffold graphs can.
+
+### Where to read the rung-3 story instead
+
+- **`docs/sbm_explainer/summary_apr22.md`** — Peng-ready writeup of
+  the full rung-3 thread.
+- **`docs/sbm_explainer/day_log_apr22.md`** — narrative of what broke
+  and how.
+- **`docs/sbm_explainer/cosine-expression.md`** — the unified §3.1
+  mechanism that explains *why* rung 3 works and rung 1 doesn't.
+- **`docs/sbm_explainer/encoder_ladder_results.md`** (post-rename;
+  formerly `results.md`) — the rung-1 / rung-2 / rung-3 comparison
+  table.
+- **`Notes/intuition_guide.md`** (vault) — teaching walkthrough of
+  the whole SBM thread from first principles, including the
+  three-rung encoder ladder.
+
+### What in this document is still valid
+
+- §§1–8 (plain-SBM model + collapsed Gibbs sampler + pEx-SBM model):
+  correct, useful as a reference implementation.
+- §13b (penalty sweep phase transition at p ≈ 0.19 on sqft_lot LIME):
+  still valid, reproducible from `run_penalty_sweep.py`.
+- §13c (Fix 3 Beta-Bernoulli layer-density test, log BF rising
+  monotonically from −7 to +390 across the penalty sweep): still
+  valid.
+- §13d (regime (a) vs (b) co-clustering diagnostic): the diagnostic
+  itself is correct. Its *conclusion* — that regime (b) is
+  universal — is what's retracted. Rung 3 lives in the middle
+  regime (neither a nor b) and pEx fires.
+
+> **Naming convention.** "pEx" and "pEx-SBM" in this document refer
+> to our **finite-K Dirichlet-Categorical** variant (K fixed,
+> per-layer Dirichlet(γ), integrated out against the Beta-Bernoulli
+> edge likelihood — §6). This is **not** the pEx-SBM of Durante et al.
+> (2025, arXiv:2410.10619), which is the **H-DP pEx** (two-level
+> Dirichlet Process, K inferred, three-route Gibbs sampler,
+> `pex-sbm.R` in `papers/pexsbm/`). Every null result in §§9–14 is
+> specific to our finite-K variant *on rung-1 graphs*. H-DP pEx
+> behaves differently, Fix 4 in §15 is now executed (`docs/sbm_
+> explainer/summary_apr22.md` §3), and rung-3 graphs are where
+> finite-K pEx fires.
 
 ---
 
@@ -748,7 +805,7 @@ campaign. The prior is invisible *on graphs where the posterior is
 itself layer-blind or layer-saturated*; given a middle-regime graph, it
 acts. SHAP/LIME attribution graphs produce only blind-or-saturated
 posteriors; fingerprint-under-scaffold graphs produce middle-regime
-ones. See `docs/sbm_explainer/results.md` for the full rung comparison.
+ones. See `docs/sbm_explainer/encoder_ladder_results.md` for the full rung comparison.
 
 H-DP pEx (Durante et al. 2025 — §15 Fix 4) is a different model, not a
 tuning of ours, and its per-node update structure (three sampling

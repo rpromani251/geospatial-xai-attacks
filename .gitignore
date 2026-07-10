@@ -40,6 +40,12 @@ Thumbs.db
 *.swp
 *.swo
 *~
+~$*
+
+# Superseded doc exports (source-of-truth .md versions live in docs/)
+docs/project_overview (superseded).pdf
+docs/project_summary (superseded).pdf
+docs/Geospatial XAI Attack Framework.pdf
 
 # Data (too large for git)
 data/raw/

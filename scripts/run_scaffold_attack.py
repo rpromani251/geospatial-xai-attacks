@@ -20,6 +20,7 @@ from src.attacks.biased_model import BiasedModel, InnocuousModel, get_safe_featu
 from src.attacks.scaffold import AdversarialScaffold
 from src.explainers.shap_runner import explain_shap
 from src.explainers.lime_runner import explain_lime
+from src.explainers.geoshap_runner import explain_geoshapley, geoshapley_to_flat, save_geoshapley
 from src.utils.io import load_model, save_metrics
 from src.utils.paths import CONFIGS_DIR, RESULTS_DIR
 
@@ -139,7 +140,6 @@ def main():
     # 9. Generate adversarial explanations
     n_explain = config["explanation"]["n_explain"]
     X_explain = X_test.iloc[:n_explain]
-    X_explain_np = X_explain.values
 
     print(f"\nGenerating adversarial explanations for {n_explain} test points...")
 
@@ -156,13 +156,13 @@ def main():
         random_state=config["explanation"]["lime_random_state"],
     )
 
-    # 10. Load honest baseline explanations
+    # 10. Load honest baseline explanations (SHAP, LIME)
     expl_dir = RESULTS_DIR / "explanations"
     honest_shap = np.load(expl_dir / "shap_values.npy")
     honest_lime = np.load(expl_dir / "lime_values.npy")
     honest_features = np.load(expl_dir / "feature_names.npy").tolist()
 
-    # 11. Compare
+    # 11. Compare SHAP and LIME
     # Honest explanations have 10 features, adversarial have 11
     # For comparison, align on the shared 10 features
     shared_indices_adv = [feature_names.index(f) for f in honest_features]
@@ -181,38 +181,42 @@ def main():
     print(f"\n  pct_black_latino mean |SHAP| in adversarial: {np.abs(adv_shap[:, pct_idx]).mean():.4f}")
     print(f"  pct_black_latino mean |LIME| in adversarial: {np.abs(adv_lime[:, pct_idx]).mean():.4f}")
 
-    # Section A: GeoSHAP adversarial explanation
-    utmx_idx = feature_names.index("UTM_X")
-    utmy_idx = feature_names.index("UTM_Y")
-    coords_train_np = X_train_np[:, [utmx_idx, utmy_idx]]
-    coords_explain_np = X_explain_np[:, [utmx_idx, utmy_idx]]
+    # 12. GeoShapley adversarial explanation
+    print("  GeoShapley (adversarial, on shap_scaffold)...")
+    adv_geo_results = explain_geoshapley(shap_scaffold, X_train, X_explain)
+    adv_geo_flat = geoshapley_to_flat(adv_geo_results)
 
-    from src.explainers.geoshap_runner import explain_geoshap
+    # Load honest GeoShapley flat values
+    honest_geo_flat = np.load(expl_dir / "geoshapley_flat.npy")
 
-    print("  GeoSHAP (adversarial, on shap_scaffold)...")
-    adv_geo_shap = explain_geoshap(
-        shap_scaffold,
-        X_train,          # full 11-feature DataFrame
-        coords_train_np,  # UTM only, shape (n_train, 2)
-        X_explain,        # full 11-feature DataFrame
-        coords_explain_np, # UTM only
-        k=100, verbose=True,
-    )
+    # Compare on shared non-geo features (first k columns of flat arrays)
+    non_geo_honest = [f for f in honest_features if f not in ("UTM_X", "UTM_Y")]
+    non_geo_adv = [f for f in feature_names if f not in ("UTM_X", "UTM_Y")]
+    n_shared = len(non_geo_honest)
+    geo_shared_names = non_geo_honest + ["geo_effect"]
+
     compare_attributions(
-        honest_shap[:, shared_indices_adv],  # use same alignment as SHAP compare
-        adv_geo_shap[:, shared_indices_adv],
-        honest_features, "GeoSHAP (adversarial)",
+        honest_geo_flat[:, :n_shared],
+        adv_geo_flat[:, :n_shared],
+        non_geo_honest, "GeoShapley (non-geo features)",
     )
-    pct_geo_idx = feature_names.index("pct_black_latino")
-    print(f"\n  pct_black_latino mean |GeoSHAP| adversarial: {np.abs(adv_geo_shap[:, pct_geo_idx]).mean():.4f}")
 
-    # 12. Save outputs
+    # pct_black_latino in adversarial GeoShapley flat
+    pct_geo_flat_idx = non_geo_adv.index("pct_black_latino")
+    print(f"\n  pct_black_latino mean |GeoShapley| adversarial: "
+          f"{np.abs(adv_geo_flat[:, pct_geo_flat_idx]).mean():.4f}")
+    print(f"  geo_effect mean |GeoShapley| honest: "
+          f"{np.abs(honest_geo_flat[:, -1]).mean():.4f}")
+    print(f"  geo_effect mean |GeoShapley| adversarial: "
+          f"{np.abs(adv_geo_flat[:, -1]).mean():.4f}")
+
+    # 13. Save outputs
     out_dir = RESULTS_DIR / "scaffold"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     np.save(out_dir / "adv_shap_values.npy", adv_shap)
     np.save(out_dir / "adv_lime_values.npy", adv_lime)
-    np.save(out_dir / "adv_geoshap_values.npy", adv_geo_shap)
+    save_geoshapley(adv_geo_results, out_dir, prefix="adv_geoshapley")
 
     metrics = {
         "innocuous_model_r2": float(psi_r2),

@@ -1,5 +1,20 @@
-"""Worst-case on-manifold x* attack: eps_geo sweep over spatial neighborhoods."""
+"""Worst-case on-manifold x* attack: eps_geo sweep over spatial neighborhoods.
 
+Environment variables you can set:
+
+    WORST_CASE_PRED_FILTER=0.15   # log-price delta; default unset (no filter)
+    WORST_CASE_NO_CAP=1           # disable the 200-candidate random subsample
+                                  # (compute argmax over ALL in-radius candidates).
+                                  # At eps=10km with no cap, one reference point
+                                  # can have ~400 candidates → TreeSHAP batches
+                                  # all of them in a single call; runtime roughly
+                                  # linear in candidate count.
+
+Defaults reproduce Exp 6 as originally published. Flip one or both to
+tighten the "2.6× gap" number.
+"""
+
+import os
 import sys
 import json
 from pathlib import Path
@@ -47,7 +62,16 @@ def main():
     # 4. Config
     N_EXPLAIN = 50
     EPS_VALUES = [500, 1000, 2000, 5000, 10000]  # UTM meters
-    N_CANDIDATES = 200
+
+    # Environment-variable knobs (see module docstring)
+    pred_filter_env = os.environ.get("WORST_CASE_PRED_FILTER", "").strip()
+    PRED_FILTER = float(pred_filter_env) if pred_filter_env else None
+    NO_CAP = os.environ.get("WORST_CASE_NO_CAP", "0") == "1"
+    N_CANDIDATES = None if NO_CAP else 200
+
+    print(f"Config: N_EXPLAIN={N_EXPLAIN}  EPS_VALUES={EPS_VALUES}")
+    print(f"        prediction_filter_delta={PRED_FILTER}  "
+          f"n_candidates_cap={'None (no cap)' if N_CANDIDATES is None else N_CANDIDATES}")
 
     n_features = X.shape[1]
     feature_names = list(X.columns)
@@ -78,6 +102,7 @@ def main():
             EPS_VALUES,
             N_CANDIDATES,
             random_state=i,
+            prediction_filter_delta=PRED_FILTER,
         )
 
         for j, res in enumerate(results):
