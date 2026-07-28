@@ -1,6 +1,6 @@
 # geospatial-xai-attacks
 
-UROP project (Robert Romani, advised by Peng Luo, MIT 2026). Can post-hoc explainers (LIME, SHAP,
+Can post-hoc explainers (LIME, SHAP,
 GeoShapley) be fooled by an adversarially biased geospatial housing-valuation model — and can that
 fooling be detected after the fact by recovering the regime structure it tried to hide?
 
