@@ -13,7 +13,7 @@ June 26 working diagram (`Workflow_0626.pdf`):
 |---|---|---|
 | 1 | AI training with bias (honest model + biased model) | **Closed** |
 | 2 | Fooling XAI (OOD-gated scaffold hides the bias from explainers) | **Closed** |
-| 3 | SBM — regime recovery (recover the hidden regime from the scaffold's own routing signature, not just detect it was fooled) | **Open** — see open questions in `FOOLING_XAI.md` |
+| 3 | Regime Detection and Recovery (detect and recover the hidden regime from the scaffold's own routing signature) | **Open** — see open questions in `FOOLING_XAI.md` |
 
 Phase 3 is built directly out of Phase 2: its behavioral-fingerprint encoder re-queries Phase 2's
 scaffold (real point → biased-model anchor, perturbations → innocuous-model refinements) and feeds
