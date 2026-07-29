@@ -4,6 +4,25 @@ Can post-hoc explainers (LIME, SHAP,
 GeoShapley) be fooled by an adversarially biased geospatial housing-valuation model — and can that
 fooling be detected after the fact by recovering the regime structure it tried to hide?
 
+## ⚠️ Phase 3 continued in a separate repo — start there
+
+The active line of work lives in
+**[detect-recover-interpret](https://github.com/rpromani251/detect-recover-interpret)**.
+
+It supersedes the April SBM narrative below *as the regime-recovery route*: modality
+(Hartigan's dip), not dispersion or explanation-graph structure, is the primary
+detector, and local K=2 mixture recovery estimates the hidden penalty from black-box
+queries alone. That repo holds the consolidated method note, the controlled
+known-regimes simulation, the baseline comparison, and the reproducible pipeline.
+
+This repo remains the home of **Phase 1–2** (the fooling-XAI scaffold attack against
+LIME/SHAP/GeoShapley) and of the **SBM / pEx-SBM thread itself**, which the new work
+uses as a comparison baseline via `src/sbm/` — so that code is still live, not
+archived.
+
+Everything below describes the April three-phase framing and is retained as history;
+`FOOLING_XAI.md` still reflects it. Treat the phase-3 status there as superseded.
+
 ## Project status — three phases
 
 See **[`FOOLING_XAI.md`](FOOLING_XAI.md)** for the full status report. Structure follows Peng's
