@@ -218,29 +218,33 @@ def main():
                     continue
                 top3, top3h = cell(Sd, e, m, "top3")
                 sg, sgh = cell(Sd, e, m, "signed_pen")
-                kp, kph = cell(Sd, e, m, "penalty_share_kept_excess" if design == "location" else "penalty_share_kept")
+                kp, kph = cell(Sd, e, m, "penalty_share_kept")
                 fid, fidh = cell(Sd, e, m, "fidelity")
                 lk, lkh = cell(Sd, e, m, "leak")
                 au, auh = cell(Sd, e, m, "auc")
-                rows.append([ENAME[e] if m == deps[0] else "", DNAME[m], f(top3, top3h, pct=True), f(sg, sgh),
-                             f(kp, kph), f(fid, fidh, pct=True), f(lk, lkh, pct=True), f(au, auh)])
+                row = [ENAME[e] if m == deps[0] else "", DNAME[m], f(top3, top3h, pct=True), f(sg, sgh), f(kp, kph)]
+                if design == "location":
+                    kx, kxh = cell(Sd, e, m, "penalty_share_kept_excess")
+                    row.append(f(kx, kxh))
+                rows.append(row + [f(fid, fidh, pct=True), f(lk, lkh, pct=True), f(au, auh)])
             rows.append("MID")
         rows = rows[:-1]
-        kname = "Penalty share kept, net of honest" if design == "location" else "Penalty share kept"
-        table(T / f"tab_main_{design}.tex",
-              ["Explainer", "Deployed model", "Trigger in top 3 (\\%)", "Signed attribution, penalised",
-               kname, "Fidelity (\\%)", "Queries reaching $f$ (\\%)", "Detector AUC"], rows,
+        cols = ["Explainer", "Deployed model", "Trigger in top 3 (\\%)", "Signed attribution, penalised",
+                "Penalty share kept"] + (["Share kept, net of honest"] if design == "location" else []) + \
+               ["Fidelity (\\%)", "Queries reaching $f$ (\\%)", "Detector AUC"]
+        table(T / f"tab_main_{design}.tex", cols, rows,
               {"feature": "Feature design: the penalty is triggered by the tract share column. ",
                "location": "Location design: the penalty is decided inside the model from the coordinates; the trigger "
                            "is location (both UTM columns for LIME and KernelSHAP, the joint GEO player for GeoShapley). ",
                "nocoord": "Design without coordinates (LIME and KernelSHAP only). "}[design]
               + "Mean $\\pm$ 95\\% interval over seeds; 200 explained homes per seed. Penalty share kept = signed "
                 "attribution to the trigger on penalised homes divided by the same under the biased model served "
-                "directly" + (", after subtracting what the honest model attributes to location on those homes"
-                              if design == "location" else "")
+                "directly" + ("; the net share first subtracts what the honest model attributes to location on "
+                              "those homes, so it is negative when an explanation shows less location effect than "
+                              "even the honest model does" if design == "location" else "")
               + ". Fidelity = share of the explained (real) homes the scaffold serves with $f$. AUC = probability "
                 "that a real home scores higher than an explainer query on the detector.", label,
-              colspec="llrrrrrr")
+              colspec="llrrrrrrr" if design == "location" else "llrrrrrr")
 
     main_table("feature", "tab:main_feature", ["biased", "gen", "mat"])
     main_table("location", "tab:main_location", ["honest", "biased", "gen", "mat"])
@@ -585,7 +589,7 @@ def main():
             fc = ci([d["detectors"][k][op]["fidelity_calibration_homes"] for d in rr])
             pr = ci([d["detectors"][k][op]["pearson_r_scaffold_vs_f"] for d in rr])
             nh = ci([d["detectors"][k].get("n_harvested", d["detectors"][k].get("n_neg", np.nan)) for d in rr])
-            rows.append([design.capitalize() if k == keys[0] else "", k.replace("_", "\_"),
+            rows.append([design.capitalize() if k == keys[0] else "", k.replace("_", "\\_"),
                          f(tau[0], tau[1], d=2), f(fe[0], fe[1], pct=True), f(fc[0], fc[1], pct=True),
                          f(pr[0], pr[1]), f(nh[0], nh[1], d=0)])
         rows.append("MID")
