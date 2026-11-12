@@ -1,0 +1,314 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,booktabs,enumitem,microtype,graphicx,xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage[round]{natbib}
+\setlist{itemsep=2pt,topsep=4pt}
+\newcommand{\pct}{\texttt{pct\_black\_latino}}
+\newcommand{\1}{\mathbf{1}}
+\newcommand{\todo}[1]{\textcolor{red!70!black}{[\textbf{TODO:} #1]}}
+\newcommand{\citeneeded}[1]{\textcolor{blue!60!black}{[CITE: #1]}}
+\input{tables/numbers}
+\newcommand{\tabinput}[1]{\IfFileExists{tables/#1.tex}{\input{tables/#1}}{\todo{table #1 not generated yet}}}
+\newcommand{\figinput}[3]{\IfFileExists{figures/#1.pdf}{\begin{figure}[t]\centering\includegraphics[width=#2\linewidth]{figures/#1}\caption{#3}\label{fig:#1}\end{figure}}{\todo{figure #1 not generated yet}}}
+
+\title{The estimator, not the geography:\\ scaffold attacks hide a racial price penalty from LIME, KernelSHAP and GeoShapley\\[6pt]
+\large Draft v1 for discussion with Peng Luo}
+\author{Robert Romani}
+\date{\todo{date} --- every number in this draft is generated from the result files; see Appendix C}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\input{abstract}
+\end{abstract}
+
+% =====================================================================================
+\section{Introduction}
+
+Machine-learning models now set or inform home valuations, insurance prices and lending decisions, and in each of
+these location is among the strongest predictors. Location is also a proxy for race and ethnicity, so a valuation
+model can reproduce the effects of historical redlining without ever being given a demographic variable
+\citeneeded{redlining and algorithmic valuation}. Regulators, lenders and researchers increasingly check such models
+with post-hoc explanation methods, which attribute each prediction to the model's inputs.
+
+Geographers have adapted these methods to spatial data. GeoShapley \citep{li2024geoshapley} treats the coordinate
+pair as one player in a Shapley game and separates an intrinsic location effect from location-invariant feature
+effects and feature-by-location interactions. For a fairness audit this is attractive: if a model penalises a
+neighbourhood, the location effect should show it.
+
+That reading assumes the model cooperates. \citet{slack2020fooling} showed that LIME and SHAP can be deceived by a
+\emph{scaffold}: a model that recognises the synthetic inputs an explainer generates and answers them with an
+innocuous model, while real inputs receive biased predictions. The attack has been shown only on non-spatial tabular
+benchmarks. Whether an explainer built for spatial data inherits the weakness, resists it, or fails in its own way
+has not been examined.
+
+We examine it on a home-valuation model for King County, Washington. The model halves predicted prices in census
+tracts where Black and Latino residents exceed a quarter of the population, and a scaffold hides the penalty behind
+a detector trained on each explainer's own queries. Our central finding is that \emph{how much a scaffold can hide is
+set by the explainer's estimator --- where it queries the model --- and not by whether the explainer knows about
+geography.} LIME samples far from real homes and can be fooled almost for free. KernelSHAP and GeoShapley satisfy
+efficiency and evaluate the explained home itself, together with many near-real hybrids, so the attacker can hide
+the penalty from them only by also withholding it from real homes. We measure that stealth--fidelity trade-off,
+explain it with a short argument about Shapley coalitions, and show that it predicts the measured trade-off.
+
+We ask five questions.
+\begin{enumerate}
+  \item Can a scaffold hide a demographic price penalty from LIME, KernelSHAP and GeoShapley in a real housing market?
+  \item What does hiding cost the attacker, in the share of real homes that still receive the bias?
+  \item Does GeoShapley's treatment of location make it harder to fool than a non-spatial Shapley explainer, and what
+        happens to its decomposition under attack?
+  \item Why do the explainers differ?
+  \item Do the answers survive other model families, auditors who change the explainer's settings, stronger
+        attackers, a smaller penalty and weaker spatial autocorrelation of the biased attribute?
+\end{enumerate}
+\todo{one-paragraph summary of findings, written last from the final tables}
+
+% =====================================================================================
+\section{Background}
+
+\paragraph{Perturbation-based explanation, and where each method queries the model.}
+All three explainers estimate attributions by evaluating the model at inputs that are not real observations; this
+is the attack surface.
+\begin{itemize}
+  \item \textbf{LIME} \citep{ribeiro2016lime} fits a weighted linear surrogate around an instance. Its default tabular
+        sampler discretises each feature into training quartiles and draws new rows bin by bin, so almost every
+        query is a combination of feature values that no real home has. The instance itself is the first row.
+  \item \textbf{KernelSHAP} \citep{lundberg2017shap} estimates Shapley values by evaluating coalitions: the features in
+        a coalition keep the instance's values and the rest are taken from a background row. With $M$ features it
+        needs $2^M - 2$ coalitions per background row (2,046 here), which it enumerates in full.
+  \item \textbf{GeoShapley} \citep{li2024geoshapley} uses the same coalition construction but moves the two coordinates
+        together as one player, so every hybrid sits at a real location. It reports an intrinsic location effect
+        (GEO), location-invariant primary effects and feature-by-location interaction effects that together satisfy
+        efficiency.
+\end{itemize}
+
+\paragraph{The scaffold attack.}
+\citet{slack2020fooling} train a classifier $d$ to tell real inputs from an explainer's synthetic queries and deploy
+\begin{equation}
+  e(x) = \begin{cases} f(x) & d(x) \ge \tau \quad\text{(looks real: biased answer)}\\
+                       \psi(x) & d(x) < \tau \quad\text{(looks synthetic: innocuous answer).}\end{cases}
+  \label{eq:scaffold}
+\end{equation}
+Real users receive biased predictions; the explainer, querying mostly synthetic points, reports the innocuous model.
+The attack is only as good as the detector's match to the explainer's sampler, which is why \citet{slack2020fooling}
+train one detector per explainer.
+
+\paragraph{Related work.}
+Explanations can be manipulated by modifying the model \citeneeded{Heo et al. 2019; Dombrowski et al. 2019}, and
+rationalised to look fair \citeneeded{A\"ivodji et al. 2019, fairwashing}. Defences detect or avoid off-manifold
+queries \citep{carmichael2023unfooling} \citeneeded{on-manifold Shapley, Frye et al.}. Shapley values in geography
+\citep{li2022shap} and GeoShapley \citep{li2024geoshapley} are increasingly used to read spatial effects out of
+machine-learning models. \todo{position against the geospatial XAI and algorithmic-bias literature Peng wants cited;
+every entry to be checked against the published version}
+
+% =====================================================================================
+\section{Study area and data}
+
+\paragraph{Housing.} 3,000 house sales in King County, Washington, from the sample distributed with the GeoShapley
+package (\texttt{seattle\_sample\_3k.csv}) \todo{confirm the sale years of the sample}. Each sale has eight structural
+features (bathrooms, living area, lot area, grade, condition, waterfront, view, age), projected coordinates (UTM zone
+10N, metres) and the base-10 logarithm of the sale price (median sale \$435{,}000).
+
+\paragraph{Demographics.} American Community Survey 2011--2015 table B03002 at census-tract level for the 398 King
+County tracts, joined to 2015 TIGER/Line tract polygons. A point-in-polygon join assigns every sale to one of 334
+tracts and attaches the tract share of Black (non-Hispanic) and Hispanic or Latino residents, \pct. Figure~\ref{fig:F1_study_area}
+maps the share and the sales.
+
+\paragraph{Split.} For each seed $s$ the 3,000 sales are split 80/20 into 2,400 training and 600 test homes. The
+first 200 test homes are the homes explained; the other 400 calibrate the attacker's threshold (Section~\ref{sec:thresholds}).
+
+\paragraph{Spatial structure.} The trigger is strongly autocorrelated: Moran's $I$ of \pct\ on an
+8-nearest-neighbour, row-standardised weights matrix is \TriggerMoran.
+
+\figinput{F1_study_area}{0.72}{Study area. Tracts shaded by the share of Black and Latino residents; tracts above the
+0.25 threshold outlined; sales shown as points, red where the biased model applies its penalty.}
+
+% =====================================================================================
+\section{Methods}
+
+\subsection{Honest, biased and innocuous models}
+The honest model $h$ is a gradient-boosted regressor (XGBoost, 500 trees, depth 6, learning rate 0.1) on the eight
+structural features and the two coordinates. The biased model subtracts a fixed penalty $\delta$ for homes in tracts
+where the trigger exceeds 0.25:
+\begin{equation}
+  f(x) = h(x) - \delta\,\1\{T(x) > 0.25\}.
+\end{equation}
+With the price on a base-10 log scale, $\delta = 0.30$ multiplies the predicted price by $10^{-0.3} \approx 0.50$:
+a penalty of one half. \todo{earlier project documents describe this as a 26\% penalty, which assumed natural logs;
+the CHANGELOG lists every place this changes} The innocuous model $\psi$ is a second XGBoost regressor (300 trees,
+depth 5) on the eight structural features only, so any explanation of it is free of location and demographics.
+Table~\ref{tab:data} gives the fit of both on the test homes.
+
+\paragraph{Two designs.} In the \emph{feature design} the trigger $T(x)$ is the \pct\ column, which the scaffold sees
+as an eleventh feature. In the \emph{location design} there is no demographic column: the model sees the ten real
+features, and $T(x)$ is the tract share looked up from the home's coordinates inside the model (a 25\,m raster of
+the real tract polygons). This is redlining in the literal sense, and it is the case GeoShapley's location effect
+exists to expose. A third design drops the coordinates altogether (LIME and KernelSHAP only).
+
+\tabinput{tab_data}
+
+\subsection{The scaffold and its detectors}
+The deployed model is \eqref{eq:scaffold} with a 100-tree random forest as $d$. We build $d$ two ways.
+\begin{itemize}
+  \item \textbf{Generic detector}: trained on the perturbation recipes of \citet{slack2020fooling}: real rows plus
+        Gaussian noise for LIME, and real rows with features swapped in from ten $k$-means centroids for the Shapley
+        explainers. Threshold $\tau = 0.5$.
+  \item \textbf{Matched detector}: trained on the queries each explainer actually sends. For LIME the negatives are
+        draws from \texttt{LimeTabularExplainer}'s own sampler around every training home. For KernelSHAP and
+        GeoShapley we run the explainer on training homes with a background drawn differently from the auditor's,
+        record a random subset of every row it submits, and train $d$ to separate them from real training rows. Rows
+        identical to a real home (the instance itself) are labelled real.
+\end{itemize}
+Detectors never see the test homes.
+
+\subsection{Thresholds and fidelity}\label{sec:thresholds}
+An attacker must decide how many real homes it is willing to misroute to $\psi$. We set the matched threshold on the
+400 calibration homes: $\tau^* = \min(0.5, q_{0.10})$, where $q_{0.10}$ is the 10th percentile of their detector
+scores, so at least 90\% of unseen real homes receive $f$. \emph{Fidelity} is then measured on the 200 explained homes,
+which did not set $\tau^*$. To trace the frontier we lower fidelity on purpose with the same detector, at thresholds
+giving 75\% and 50\% fidelity on the calibration homes.
+
+\subsection{Explainers}
+LIME with 500 samples and the default quartile sampler; KernelSHAP with a 100-row background sample, every coalition
+enumerated and no feature selection (\texttt{l1\_reg=False}, so the values are exact Shapley values for that
+background)\footnote{shap's default \texttt{l1\_reg="num\_features(10)"} keeps at most ten features per home even under
+full enumeration, which with eleven features zeroes one of them. At seed 42 switching it off changed the trigger's
+attribution by less than 0.001.}; GeoShapley with the same 100-row background and the coordinates as the joint player.
+GeoShapley is exact in the location design (eight non-location features); with nine non-location features (feature
+design) the package evaluates all coalitions of size at most three and their complements plus Shapley-weighted draws,
+about 600 of 1,024, which we seed per run.
+
+\subsection{What we measure}
+For explained home $i$ with attribution vector $\phi(x_i)$, trigger set $J$ (the \pct\ column; both UTM columns for
+LIME and KernelSHAP in the location design; the GEO player for GeoShapley in the location design) and penalised set
+$P = \{i : T(x_i) > 0.25\}$:
+\begin{align}
+  \text{signed attribution} \quad & a = \frac{1}{|P|}\sum_{i \in P}\sum_{j \in J}\phi_j(x_i), \\
+  \text{penalty share kept} \quad & K = a^{\text{deployed}} / a^{\text{biased}}, \label{eq:K}\\
+  \text{net of honest (location design)} \quad & K_{\text{net}} = (a^{\text{deployed}} - a^{\text{honest}}) / (a^{\text{biased}} - a^{\text{honest}}),\\
+  \text{trigger in top three} \quad & \tfrac{1}{N}\textstyle\sum_i \1\{\text{rank of } \textstyle\sum_{j\in J}|\phi_j(x_i)| \le 3\},\\
+  \text{fidelity} \quad & \tfrac{1}{N}\textstyle\sum_i \1\{d(x_i) \ge \tau\},\\
+  \text{queries reaching } f \quad & \text{share of the explainer's own queries with } d \ge \tau,\\
+  \text{detector AUC} \quad & \Pr\{d(x_{\text{real}}) > d(x_{\text{query}})\} + \tfrac12\Pr\{=\}.
+\end{align}
+The reference in \eqref{eq:K} is the explanation of the biased model served directly, with no scaffold: that, not the
+honest model, is what the attack has to hide. $K = 1$ means the penalty is fully visible, $K = 0$ fully hidden.
+Every detector score of every query is histogrammed, so AUC and the leak at any fidelity are computed exactly
+without re-running an explainer.
+
+\subsection{Why Shapley explainers resist: efficiency and coalition sizes}\label{sec:mechanism}
+For a Shapley explainer with background $B$ the attributions of a home sum to the served prediction there minus its
+background mean (efficiency):
+\begin{equation}
+  \sum_{j=1}^{M}\phi_j(x) = e(x) - \frac{1}{|B|}\sum_{b\in B} e(b).
+\end{equation}
+While the scaffold keeps fidelity, the explained home itself is routed to $f$ and the penalty sits in $e(x)$: it
+cannot vanish from the explanation; it can only move to other features, or the attacker must stop serving $f$ at $x$.
+LIME has no such constraint. The trigger's attribution is an average over coalition sizes with equal weight $1/M$,
+\begin{equation}
+  \phi_j(x) = \frac{1}{M}\sum_{k=0}^{M-1}\mathbb{E}_{|S|=k,\; j\notin S,\; b\sim B}\bigl[e(x_{S\cup j}, b) - e(x_S, b)\bigr],
+  \label{eq:sizes}
+\end{equation}
+where $(x_S, b)$ takes the players in $S$ from $x$ and the rest from $b$. The largest coalition is the explained
+home; near-complete coalitions differ from it in one or two players, and near-empty ones are a background (real)
+home with one or two values swapped in. Both ends look real to a detector. If $\rho_k$ is the share of size-$k$
+hybrids routed to $f$, the share of the penalty kept is roughly the average of $\rho_k$ over sizes, and the attacker
+can lower it only by rejecting near-real points, which also rejects real homes. We test this by estimating each term
+of \eqref{eq:sizes} by Monte Carlo with the attack's own detector, background and thresholds (200 hybrids per home
+and size) and comparing the prediction with the measured $K$ (rule M below).
+
+\subsection{Robustness}
+\begin{itemize}
+  \item \textbf{Model family}: $h$ and $\psi$ as random forests (100 trees, leaf size 3) or neural networks (two hidden
+        layers of 256 and 128 units, standardised inputs).
+  \item \textbf{Audit settings the attacker did not train for}: Shapley background of 25 or 200 rows, or 100 $k$-means
+        centroids; LIME with 5,000 samples or with its Gaussian sampler. The detector stays the one trained for the
+        defaults; the biased reference uses the auditor's changed settings.
+  \item \textbf{Spatial autocorrelation}: a share of homes receives the trigger value of a random other home, which
+        keeps the marginal distribution and lowers Moran's $I$.
+  \item \textbf{Smaller penalty}: $\delta = 0.10$ (a 21\% price cut).
+\end{itemize}
+
+\subsection{An outcome-based check}
+No explainer is involved: on the 600 held-out homes we compute residuals $r = e(x) - y$ of the deployed model against
+observed log price and ask whether they reveal the penalised homes, using the residual itself, its local mean over
+the 8 nearest neighbours, global Moran's $I$, and local Moran (LISA) low--low clusters
+\citep{moran1950,anselin1995lisa}, for penalties from 0.02 to 0.30. The scaffold here is the LIME-matched one, which
+serves almost every real home with $f$.
+
+\subsection{Statistics and pre-specified decision rules}
+The seed is the unit of replication; a seed re-runs the split, the models, the detectors, the background draw and the
+LIME sampling. Each metric is a mean over seeds with a 95\% interval $\bar x \pm t_{S-1}^{-1}(0.975)\,\hat\sigma/\sqrt S$;
+contrasts are paired by seed. The rules below were fixed before the runs.
+\begin{itemize}
+  \item \textbf{C1 (fooled)}: $1 - K$ under the matched scaffold has an interval above 0, Holm-corrected over the three
+        explainers.
+  \item \textbf{C1$'$ (fully fooled)}: trigger in the top three for at most 5\% of homes and $K \le 0.10$ at fidelity at
+        least 90\%; otherwise \emph{partly fooled}.
+  \item \textbf{C2}: GeoShapley minus KernelSHAP in $K$, matched scaffold; an interval containing 0 reads as no
+        detectable difference.
+  \item \textbf{C3}: GeoShapley's GEO effect and interaction sums, biased against matched; a change is claimed only if
+        the paired interval excludes 0.
+  \item \textbf{C5}: slope of the matched leak on Moran's $I$ over at least three levels.
+  \item \textbf{M}: the Monte Carlo prediction holds if its mean absolute error against measured $K$ is no larger than
+        the seed-to-seed standard deviation of measured $K$; otherwise only the efficiency identity is claimed.
+  \item \textbf{R}: a robustness configuration agrees with the main result if each explainer's C1$'$ class is unchanged.
+  \item \textbf{E7}: the outcome-check section is included if, at $\delta = 0.10$, the scaffold's local-mean AUC is at
+        least 0.80 and the honest model's LISA flag rate on unpenalised homes is at most 6\%.
+\end{itemize}
+
+% =====================================================================================
+\section{Results}
+\input{results}
+
+% =====================================================================================
+\section{Discussion}
+\input{discussion}
+
+\section{Limitations}
+\begin{itemize}
+  \item One metropolitan area in this draft. \todo{Cook County runs for the submission version}
+  \item The penalty is synthetic and large; Table~\ref{tab:penalty010} repeats the main result at a smaller one.
+  \item The attacker knows which explainer is used; Table~\ref{tab:robust} varies the settings it does not know.
+  \item The adversary is static: defences and attackers that adapt to them are out of scope.
+  \item 200 explained homes per seed, of which about \NPenFeature\ are penalised; the number of seeds is in every table.
+  \item Feature-design GeoShapley uses the package's sampled coalitions, so its values carry Monte Carlo error that the
+        seed intervals include.
+\end{itemize}
+
+\section{Conclusion}
+\input{conclusion}
+
+\section*{Data and code availability}
+Housing sample: \texttt{seattle\_sample\_3k.csv} from the GeoShapley repository. Demographics: ACS 2011--2015 table
+B03002 and 2015 TIGER/Line tracts, US Census Bureau. Code: \texttt{scripts/run\_matched\_attack.py} and the scripts
+listed in Appendix C, with fixed seeds.
+
+\bibliographystyle{plainnat}
+\begin{thebibliography}{99}
+\bibitem[Anselin(1995)]{anselin1995lisa} Anselin, L. (1995). Local indicators of spatial association---LISA.
+  \emph{Geographical Analysis} 27(2), 93--115. \todo{check}
+\bibitem[Carmichael and Scheirer(2023)]{carmichael2023unfooling} Carmichael, Z. and Scheirer, W. J. (2023).
+  Unfooling perturbation-based post hoc explainers. \emph{Proceedings of the AAAI Conference on Artificial
+  Intelligence} 37(6).
+\bibitem[Li(2022)]{li2022shap} Li, Z. (2022). Extracting spatial effects from machine learning model using local
+  interpretation method: An example of SHAP and XGBoost. \emph{Computers, Environment and Urban Systems} 96, 101845.
+\bibitem[Li(2024)]{li2024geoshapley} Li, Z. (2024). GeoShapley: A game theory approach to measuring spatial effects
+  in machine learning models. \emph{Annals of the American Association of Geographers} 114(7), 1365--1385.
+\bibitem[Lundberg and Lee(2017)]{lundberg2017shap} Lundberg, S. M. and Lee, S.-I. (2017). A unified approach to
+  interpreting model predictions. \emph{Advances in Neural Information Processing Systems} 30.
+\bibitem[Moran(1950)]{moran1950} Moran, P. A. P. (1950). Notes on continuous stochastic phenomena.
+  \emph{Biometrika} 37(1/2), 17--23. \todo{check}
+\bibitem[Ribeiro et al.(2016)]{ribeiro2016lime} Ribeiro, M. T., Singh, S. and Guestrin, C. (2016). ``Why should I
+  trust you?'': Explaining the predictions of any classifier. \emph{Proceedings of KDD}, 1135--1144.
+\bibitem[Slack et al.(2020)]{slack2020fooling} Slack, D., Hilgard, S., Jia, E., Singh, S. and Lakkaraju, H. (2020).
+  Fooling LIME and SHAP: Adversarial attacks on post hoc explanation methods. \emph{Proceedings of the AAAI/ACM
+  Conference on AI, Ethics, and Society}, 180--186.
+\end{thebibliography}
+
+\appendix
+\input{appendix}
+
+\end{document}

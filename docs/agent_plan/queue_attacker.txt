@@ -1,0 +1,16 @@
+# R3 attacker strength (optional; run only if time allows after everything else)
+--design feature --seed 0 --skip-honest-shapley --attacker rf_leaf5
+--design feature --seed 1 --skip-honest-shapley --attacker rf_leaf5
+--design feature --seed 2 --skip-honest-shapley --attacker rf_leaf5
+--design feature --seed 3 --skip-honest-shapley --attacker rf_leaf5
+--design feature --seed 4 --skip-honest-shapley --attacker rf_leaf5
+--design feature --seed 0 --skip-honest-shapley --attacker xgb
+--design feature --seed 1 --skip-honest-shapley --attacker xgb
+--design feature --seed 2 --skip-honest-shapley --attacker xgb
+--design feature --seed 3 --skip-honest-shapley --attacker xgb
+--design feature --seed 4 --skip-honest-shapley --attacker xgb
+--design feature --seed 0 --skip-honest-shapley --harvest-scale 4
+--design feature --seed 1 --skip-honest-shapley --harvest-scale 4
+--design feature --seed 2 --skip-honest-shapley --harvest-scale 4
+--design feature --seed 3 --skip-honest-shapley --harvest-scale 4
+--design feature --seed 4 --skip-honest-shapley --harvest-scale 4

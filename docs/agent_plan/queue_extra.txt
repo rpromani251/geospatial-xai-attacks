@@ -1,0 +1,23 @@
+# autocorrelation sweep
+--design feature --seed 0 --shuffle 0.5 --skip-honest-shapley
+--design feature --seed 1 --shuffle 0.5 --skip-honest-shapley
+--design feature --seed 2 --shuffle 0.5 --skip-honest-shapley
+--design feature --seed 3 --shuffle 0.5 --skip-honest-shapley
+--design feature --seed 4 --shuffle 0.5 --skip-honest-shapley
+--design feature --seed 0 --shuffle 0.0 --skip-honest-shapley
+--design feature --seed 1 --shuffle 0.0 --skip-honest-shapley
+--design feature --seed 2 --shuffle 0.0 --skip-honest-shapley
+--design feature --seed 3 --shuffle 0.0 --skip-honest-shapley
+--design feature --seed 4 --shuffle 0.0 --skip-honest-shapley
+# smaller penalty
+--design feature --seed 0 --penalty 0.10 --skip-honest-shapley --frontier
+--design feature --seed 1 --penalty 0.10 --skip-honest-shapley --frontier
+--design feature --seed 2 --penalty 0.10 --skip-honest-shapley --frontier
+--design feature --seed 3 --penalty 0.10 --skip-honest-shapley --frontier
+--design feature --seed 4 --penalty 0.10 --skip-honest-shapley --frontier
+# no coordinates
+--design nocoord --seed 0
+--design nocoord --seed 1
+--design nocoord --seed 2
+--design nocoord --seed 3
+--design nocoord --seed 4

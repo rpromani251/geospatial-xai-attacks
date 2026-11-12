@@ -1,0 +1,47 @@
+# R1 model families (h and psi): random forest, neural net
+--design feature --seed 0 --model rf --skip-honest-shapley
+--design feature --seed 1 --model rf --skip-honest-shapley
+--design feature --seed 2 --model rf --skip-honest-shapley
+--design feature --seed 3 --model rf --skip-honest-shapley
+--design feature --seed 4 --model rf --skip-honest-shapley
+--design location --seed 0 --model rf
+--design location --seed 1 --model rf
+--design location --seed 2 --model rf
+--design location --seed 3 --model rf
+--design location --seed 4 --model rf
+--design feature --seed 0 --model mlp --skip-honest-shapley
+--design feature --seed 1 --model mlp --skip-honest-shapley
+--design feature --seed 2 --model mlp --skip-honest-shapley
+--design feature --seed 3 --model mlp --skip-honest-shapley
+--design feature --seed 4 --model mlp --skip-honest-shapley
+--design location --seed 0 --model mlp
+--design location --seed 1 --model mlp
+--design location --seed 2 --model mlp
+--design location --seed 3 --model mlp
+--design location --seed 4 --model mlp
+# R2 audit-settings mismatch: detectors trained for the defaults (bg 100 sampled rows; LIME 500, quartile)
+--design feature --seed 0 --audit-bg 25
+--design feature --seed 1 --audit-bg 25
+--design feature --seed 2 --audit-bg 25
+--design feature --seed 3 --audit-bg 25
+--design feature --seed 4 --audit-bg 25
+--design feature --seed 0 --audit-bg 200
+--design feature --seed 1 --audit-bg 200
+--design feature --seed 2 --audit-bg 200
+--design feature --seed 3 --audit-bg 200
+--design feature --seed 4 --audit-bg 200
+--design feature --seed 0 --audit-bg-kind kmeans
+--design feature --seed 1 --audit-bg-kind kmeans
+--design feature --seed 2 --audit-bg-kind kmeans
+--design feature --seed 3 --audit-bg-kind kmeans
+--design feature --seed 4 --audit-bg-kind kmeans
+--design feature --seed 0 --audit-lime-samples 5000
+--design feature --seed 1 --audit-lime-samples 5000
+--design feature --seed 2 --audit-lime-samples 5000
+--design feature --seed 3 --audit-lime-samples 5000
+--design feature --seed 4 --audit-lime-samples 5000
+--design feature --seed 0 --audit-lime-sampler gaussian
+--design feature --seed 1 --audit-lime-sampler gaussian
+--design feature --seed 2 --audit-lime-sampler gaussian
+--design feature --seed 3 --audit-lime-sampler gaussian
+--design feature --seed 4 --audit-lime-sampler gaussian

@@ -1,0 +1,20 @@
+--design feature --seed 0 --skip-honest-shapley --frontier
+--design feature --seed 1 --skip-honest-shapley --frontier
+--design feature --seed 2 --skip-honest-shapley --frontier
+--design feature --seed 3 --skip-honest-shapley --frontier
+--design feature --seed 4 --skip-honest-shapley --frontier
+--design feature --seed 5 --skip-honest-shapley --frontier
+--design feature --seed 6 --skip-honest-shapley --frontier
+--design feature --seed 7 --skip-honest-shapley --frontier
+--design feature --seed 8 --skip-honest-shapley --frontier
+--design feature --seed 9 --skip-honest-shapley --frontier
+--design location --seed 0 --frontier
+--design location --seed 1 --frontier
+--design location --seed 2 --frontier
+--design location --seed 3 --frontier
+--design location --seed 4 --frontier
+--design location --seed 5 --frontier
+--design location --seed 6 --frontier
+--design location --seed 7 --frontier
+--design location --seed 8 --frontier
+--design location --seed 9 --frontier
