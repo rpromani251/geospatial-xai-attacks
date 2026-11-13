@@ -1,0 +1,22 @@
+\begin{table}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{llrrrrrrr}
+\toprule
+Explainer & \makecell[b]{Deployed \\ model} & \makecell[b]{Top 3, \\ penalised \\ homes (\%)} & \makecell[b]{Top 3, all \\ homes (\%)} & \makecell[b]{Penalty share \\ kept} & \makecell[b]{Fidelity, all \\ homes (\%)} & \makecell[b]{Fidelity, \\ penalised \\ homes (\%)} & \makecell[b]{Queries \\ reaching $f$ \\ (\%)} & Detector AUC \\
+\midrule
+LIME & Biased model, no scaffold & 100.0 $\pm$ 0.0 & 54.7 $\pm$ 9.2 & 1.00 $\pm$ 0.00 & -- & -- & -- & -- \\
+ & Scaffold, generic detector & 100.0 $\pm$ 0.0 & 51.7 $\pm$ 10.1 & 0.99 $\pm$ 0.02 & 100.0 $\pm$ 0.0 & 100.0 $\pm$ 0.0 & 98.8 $\pm$ 2.1 & 0.94 $\pm$ 0.01 \\
+ & Scaffold, matched detector (90\%) & 0.0 $\pm$ 0.0 & 0.4 $\pm$ 0.8 & 0.02 $\pm$ 0.01 & 96.6 $\pm$ 1.8 & 97.9 $\pm$ 4.2 & 0.0 $\pm$ 0.0 & 1.00 $\pm$ 0.00 \\
+\midrule
+KernelSHAP & Biased model, no scaffold & 100.0 $\pm$ 0.0 & 80.2 $\pm$ 12.8 & 1.00 $\pm$ 0.00 & -- & -- & -- & -- \\
+ & Scaffold, generic detector & 98.2 $\pm$ 2.2 & 52.4 $\pm$ 16.4 & 0.61 $\pm$ 0.02 & 76.5 $\pm$ 3.7 & 78.1 $\pm$ 5.9 & 50.1 $\pm$ 2.5 & 0.68 $\pm$ 0.02 \\
+ & Scaffold, matched detector (90\%) & 100.0 $\pm$ 0.0 & 60.6 $\pm$ 18.6 & 0.74 $\pm$ 0.04 & 90.2 $\pm$ 2.0 & 88.5 $\pm$ 5.8 & 66.0 $\pm$ 2.0 & 0.70 $\pm$ 0.01 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\caption{Design without coordinates (LIME and KernelSHAP only). Mean $\pm$ 95\% interval over seeds; 200 explained homes per seed. Penalty share kept = signed attribution to the trigger on penalised homes divided by the same under the biased model served directly. Top 3 = share of explained homes whose trigger attribution (in absolute value) is among the three largest, on the penalised homes and on all 200. Fidelity = share of the explained (real) homes the scaffold serves with $f$; on penalised homes it is the share that still receive the penalty. AUC = probability that a real home scores higher than an explainer query on the detector.}
+\label{tab:main_nocoord}
+\end{table}

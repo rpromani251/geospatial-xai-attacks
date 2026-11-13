@@ -1,0 +1,29 @@
+\begin{table}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{llrrrrrrrr}
+\toprule
+Explainer & \makecell[b]{Deployed \\ model} & \makecell[b]{Top 3, \\ penalised \\ homes (\%)} & \makecell[b]{Top 3, all \\ homes (\%)} & \makecell[b]{Penalty share \\ kept} & \makecell[b]{Share kept, \\ net of honest} & \makecell[b]{Fidelity, all \\ homes (\%)} & \makecell[b]{Fidelity, \\ penalised \\ homes (\%)} & \makecell[b]{Queries \\ reaching $f$ \\ (\%)} & Detector AUC \\
+\midrule
+LIME & Honest model & 68.6 $\pm$ 15.8 & 66.1 $\pm$ 10.9 & 0.57 $\pm$ 0.08 & 0.00 $\pm$ 0.00 & -- & -- & -- & -- \\
+ & Biased model, no scaffold & 93.9 $\pm$ 6.6 & 94.6 $\pm$ 5.0 & 1.00 $\pm$ 0.00 & 1.00 $\pm$ 0.00 & -- & -- & -- & -- \\
+ & Scaffold, generic detector & 88.9 $\pm$ 12.0 & 90.3 $\pm$ 9.2 & 0.96 $\pm$ 0.03 & 0.90 $\pm$ 0.07 & 100.0 $\pm$ 0.0 & 100.0 $\pm$ 0.0 & 94.9 $\pm$ 3.2 & 0.97 $\pm$ 0.01 \\
+ & Scaffold, matched detector (90\%) & 1.6 $\pm$ 4.4 & 0.8 $\pm$ 1.3 & 0.05 $\pm$ 0.01 & $-$1.24 $\pm$ 0.38 & 96.9 $\pm$ 1.5 & 98.9 $\pm$ 2.9 & 0.0 $\pm$ 0.0 & 1.00 $\pm$ 0.00 \\
+\midrule
+KernelSHAP & Honest model & 97.1 $\pm$ 6.0 & 96.7 $\pm$ 1.7 & 0.33 $\pm$ 0.03 & 0.00 $\pm$ 0.00 & -- & -- & -- & -- \\
+ & Biased model, no scaffold & 100.0 $\pm$ 0.0 & 98.7 $\pm$ 1.4 & 1.00 $\pm$ 0.00 & 1.00 $\pm$ 0.00 & -- & -- & -- & -- \\
+ & Scaffold, generic detector & 97.5 $\pm$ 1.9 & 87.6 $\pm$ 3.4 & 0.46 $\pm$ 0.03 & 0.20 $\pm$ 0.05 & 71.9 $\pm$ 2.7 & 65.2 $\pm$ 5.3 & 42.0 $\pm$ 2.2 & 0.71 $\pm$ 0.01 \\
+ & Scaffold, matched detector (90\%) & 98.1 $\pm$ 5.4 & 95.8 $\pm$ 3.7 & 0.65 $\pm$ 0.09 & 0.48 $\pm$ 0.15 & 90.0 $\pm$ 4.0 & 84.7 $\pm$ 16.5 & 59.3 $\pm$ 3.1 & 0.74 $\pm$ 0.02 \\
+\midrule
+GeoShapley & Honest model & 92.6 $\pm$ 5.8 & 90.8 $\pm$ 3.2 & 0.32 $\pm$ 0.03 & 0.00 $\pm$ 0.00 & -- & -- & -- & -- \\
+ & Biased model, no scaffold & 100.0 $\pm$ 0.0 & 92.9 $\pm$ 4.7 & 1.00 $\pm$ 0.00 & 1.00 $\pm$ 0.00 & -- & -- & -- & -- \\
+ & Scaffold, generic detector & 96.7 $\pm$ 4.2 & 68.1 $\pm$ 5.2 & 0.45 $\pm$ 0.03 & 0.18 $\pm$ 0.05 & 71.9 $\pm$ 2.7 & 65.2 $\pm$ 5.3 & 43.4 $\pm$ 2.2 & 0.69 $\pm$ 0.01 \\
+ & Scaffold, matched detector (90\%) & 98.6 $\pm$ 2.4 & 84.2 $\pm$ 8.1 & 0.65 $\pm$ 0.07 & 0.48 $\pm$ 0.13 & 88.8 $\pm$ 4.0 & 82.1 $\pm$ 10.5 & 63.6 $\pm$ 3.1 & 0.70 $\pm$ 0.01 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\caption{Location design: the penalty is decided inside the model from the coordinates; the trigger is location (both UTM columns for LIME and KernelSHAP; for GeoShapley the location player, which carries the intrinsic GEO effect plus half of each feature-by-location interaction). Mean $\pm$ 95\% interval over seeds; 200 explained homes per seed. Penalty share kept = signed attribution to the trigger on penalised homes divided by the same under the biased model served directly; the net share first subtracts what the honest model attributes to location on those homes, so it is negative when an explanation shows less location effect than even the honest model does. Top 3 = share of explained homes whose trigger attribution (in absolute value) is among the three largest, on the penalised homes and on all 200. Fidelity = share of the explained (real) homes the scaffold serves with $f$; on penalised homes it is the share that still receive the penalty. AUC = probability that a real home scores higher than an explainer query on the detector.}
+\label{tab:main_location}
+\end{table}

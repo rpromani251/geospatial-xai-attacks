@@ -1,0 +1,32 @@
+\begin{table}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{lllrrrrr}
+\toprule
+Design & Explainer & \makecell[b]{Detector, \\ threshold} & \makecell[b]{Fidelity, all \\ homes (\%)} & \makecell[b]{Fidelity, \\ penalised \\ homes (\%)} & \makecell[b]{Penalty share \\ kept} & \makecell[b]{Top 3, \\ penalised \\ homes (\%)} & \makecell[b]{Queries \\ reaching $f$ \\ (\%)} \\
+\midrule
+Feature & KernelSHAP & Matched, $\tau^*$ & 89.5 $\pm$ 2.0 & 85.9 $\pm$ 11.2 & 0.67 $\pm$ 0.07 & 99.5 $\pm$ 1.4 & 53.6 $\pm$ 3.1 \\
+ &  & Matched, 75\% & 74.9 $\pm$ 4.8 & 72.9 $\pm$ 9.4 & 0.47 $\pm$ 0.05 & 91.1 $\pm$ 6.9 & 33.8 $\pm$ 3.7 \\
+ &  & Matched, 50\% & 50.5 $\pm$ 4.8 & 45.8 $\pm$ 7.6 & 0.24 $\pm$ 0.02 & 54.7 $\pm$ 12.3 & 15.6 $\pm$ 2.1 \\
+ &  & Generic, 0.5 & 74.4 $\pm$ 1.3 & 73.8 $\pm$ 7.2 & 0.52 $\pm$ 0.05 & 97.0 $\pm$ 2.4 & 41.1 $\pm$ 2.1 \\
+ & GeoShapley & Matched, $\tau^*$ & 89.7 $\pm$ 2.1 & 87.9 $\pm$ 9.8 & 0.72 $\pm$ 0.07 & 100.0 $\pm$ 0.0 & 60.8 $\pm$ 3.2 \\
+ &  & Matched, 75\% & 75.0 $\pm$ 5.8 & 72.2 $\pm$ 9.1 & 0.50 $\pm$ 0.03 & 93.8 $\pm$ 2.3 & 40.4 $\pm$ 3.3 \\
+ &  & Matched, 50\% & 52.1 $\pm$ 3.3 & 52.2 $\pm$ 9.7 & 0.29 $\pm$ 0.03 & 58.0 $\pm$ 9.5 & 22.0 $\pm$ 2.0 \\
+ &  & Generic, 0.5 & 74.4 $\pm$ 1.3 & 73.8 $\pm$ 7.2 & 0.54 $\pm$ 0.06 & 95.7 $\pm$ 4.1 & 45.0 $\pm$ 2.5 \\
+\midrule
+Location & KernelSHAP & Matched, $\tau^*$ & 90.0 $\pm$ 4.0 & 84.7 $\pm$ 16.5 & 0.48 $\pm$ 0.15 & 98.1 $\pm$ 5.4 & 59.3 $\pm$ 3.1 \\
+ &  & Matched, 75\% & 74.4 $\pm$ 8.4 & 67.9 $\pm$ 12.7 & 0.17 $\pm$ 0.14 & 89.8 $\pm$ 6.8 & 38.4 $\pm$ 4.1 \\
+ &  & Matched, 50\% & 50.8 $\pm$ 3.6 & 42.2 $\pm$ 7.1 & $-$0.15 $\pm$ 0.08 & 63.3 $\pm$ 11.2 & 20.8 $\pm$ 2.6 \\
+ &  & Generic, 0.5 & 71.9 $\pm$ 2.7 & 65.2 $\pm$ 5.3 & 0.20 $\pm$ 0.05 & 97.5 $\pm$ 1.9 & 42.0 $\pm$ 2.2 \\
+ & GeoShapley & Matched, $\tau^*$ & 88.8 $\pm$ 4.0 & 82.1 $\pm$ 10.5 & 0.48 $\pm$ 0.13 & 98.6 $\pm$ 2.4 & 63.6 $\pm$ 3.1 \\
+ &  & Matched, 75\% & 74.5 $\pm$ 4.4 & 65.1 $\pm$ 13.2 & 0.14 $\pm$ 0.15 & 88.4 $\pm$ 6.7 & 43.2 $\pm$ 4.4 \\
+ &  & Matched, 50\% & 52.1 $\pm$ 5.5 & 45.2 $\pm$ 6.1 & $-$0.17 $\pm$ 0.10 & 56.8 $\pm$ 11.0 & 24.3 $\pm$ 3.7 \\
+ &  & Generic, 0.5 & 71.9 $\pm$ 2.7 & 65.2 $\pm$ 5.3 & 0.18 $\pm$ 0.05 & 96.7 $\pm$ 4.2 & 43.4 $\pm$ 2.2 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\caption{The stealth--fidelity frontier for the Shapley explainers. Each matched row uses the same detector with a stricter threshold. Penalty share kept is net of the honest model in the location design. Mean $\pm$ 95\% interval over seeds.}
+\label{tab:frontier}
+\end{table}

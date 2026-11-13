@@ -1,0 +1,23 @@
+\begin{table}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{llrrr}
+\toprule
+Design & \makecell[b]{Deployed \\ model} & \makecell[b]{GEO on \\ penalised \\ homes} & \makecell[b]{Mean \\ $|$GEO$|$} & \makecell[b]{Sum of \\ $|$interaction \\ effects$|$} \\
+\midrule
+Feature & Biased model, no scaffold & $-$0.11 $\pm$ 0.02 & 0.12 $\pm$ 0.01 & 0.07 $\pm$ 0.00 \\
+ & Scaffold, generic detector & 0.05 $\pm$ 0.03 & 0.06 $\pm$ 0.01 & 0.17 $\pm$ 0.02 \\
+ & Scaffold, matched detector (90\%) & 0.02 $\pm$ 0.02 & 0.06 $\pm$ 0.01 & 0.16 $\pm$ 0.01 \\
+\midrule
+Location & Honest model & $-$0.11 $\pm$ 0.02 & 0.12 $\pm$ 0.01 & 0.07 $\pm$ 0.00 \\
+ & Biased model, no scaffold & $-$0.35 $\pm$ 0.02 & 0.17 $\pm$ 0.01 & 0.07 $\pm$ 0.00 \\
+ & Scaffold, generic detector & $-$0.06 $\pm$ 0.03 & 0.07 $\pm$ 0.02 & 0.16 $\pm$ 0.01 \\
+ & Scaffold, matched detector (90\%) & $-$0.16 $\pm$ 0.02 & 0.09 $\pm$ 0.01 & 0.14 $\pm$ 0.00 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\caption{GeoShapley's decomposition by deployment. GEO is the intrinsic location effect; interaction effects are the feature-by-location terms, summed in absolute value per home and averaged. Mean $\pm$ 95\% interval over seeds.}
+\label{tab:geo}
+\end{table}

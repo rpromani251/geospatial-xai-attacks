@@ -210,8 +210,16 @@ the more a scaffold can hide from a Shapley explainer at the same fidelity.
 \figinput{F6_autocorrelation}{0.66}{Queries reaching $f$ under the matched scaffold as the trigger's spatial
 autocorrelation is lowered. Mean and 95\% interval over seeds.}
 
-\paragraph{A smaller penalty.} \todo{Table~\ref{tab:penalty010}: share kept at $\delta = 0.10$ (LIME \PenTenLIMEKept,
-KernelSHAP \PenTenKernelSHAPKept, GeoShapley \PenTenGeoShapleyKept).}
+\paragraph{A smaller penalty.} At $\delta = 0.10$, a 21\% price cut, LIME is still fully fooled (share kept
+\PenTenLIMEKept), while KernelSHAP and GeoShapley keep a larger share than at $\delta = 0.30$: \PenTenKernelSHAPKept\
+and \PenTenGeoShapleyKept\ at the same fidelity, and \PenTenKernelSHAPFiftyKept\ and \PenTenGeoShapleyFiftyKept\ at
+50\% fidelity (Table~\ref{tab:penalty010}). The detector and its routing do not depend on $\delta$ (seed by seed the
+fidelities and the queries reaching $f$ are identical to the main run), so the penalty term of the trigger's
+attribution scales with $\delta$. The term $(r_{S\cup j} - r_S)(h - \psi)$ does not, and it is a larger share of a
+smaller penalty. Because a smaller penalty is also a smaller attribution, the trigger is less prominent to begin with:
+it is in the top three for \PenTenKernelSHAPBiasedTopPen\% of penalised homes without a scaffold (both Shapley
+explainers) and
+\PenTenKernelSHAPTopPen\% (KernelSHAP) and \PenTenGeoShapleyTopPen\% (GeoShapley) under the matched scaffold.
 \tabinput{tab_penalty010}
 
 \subsection{An outcome-based check sees what the explainers miss}

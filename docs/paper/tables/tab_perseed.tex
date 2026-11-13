@@ -1,0 +1,26 @@
+\begin{table}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{llrrrrrr}
+\toprule
+Design & Seed & LIME $K$ & LIME fid. & \makecell[b]{KernelSHAP \\ $K$} & \makecell[b]{KernelSHAP \\ fid.} & \makecell[b]{GeoShapley \\ $K$} & \makecell[b]{GeoShapley \\ fid.} \\
+\midrule
+Feature & 0 & 0.04 & 96.0 & 0.75 & 89.5 & 0.79 & 90.5 \\
+ & 1 & 0.01 & 96.0 & 0.65 & 91.5 & 0.74 & 91.5 \\
+ & 2 & 0.02 & 97.5 & 0.67 & 87.5 & 0.71 & 89.5 \\
+ & 3 & 0.00 & 94.5 & 0.68 & 90.5 & 0.72 & 90.0 \\
+ & 4 & 0.03 & 95.5 & 0.60 & 88.5 & 0.64 & 87.0 \\
+\midrule
+Location & 0 & $-$1.31 & 96.0 & 0.47 & 92.5 & 0.42 & 87.0 \\
+ & 1 & $-$1.40 & 97.0 & 0.56 & 92.5 & 0.55 & 90.0 \\
+ & 2 & $-$0.78 & 99.0 & 0.57 & 88.5 & 0.55 & 88.5 \\
+ & 3 & $-$1.14 & 96.0 & 0.52 & 91.5 & 0.54 & 93.5 \\
+ & 4 & $-$1.58 & 96.5 & 0.27 & 85.0 & 0.32 & 85.0 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\caption{Per-seed penalty share kept ($K$, net of honest in the location design) and fidelity (\%) under the matched scaffold.}
+\label{tab:perseed}
+\end{table}

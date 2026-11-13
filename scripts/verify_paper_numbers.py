@@ -330,6 +330,37 @@ def main():
         check_str("RobCells", str(cells))
         check_str("RobHold", str(hold))
 
+    # smaller penalty, design without coordinates, autocorrelation (C5)
+    rr = load_runs(res, "feature", penalty=0.1)
+    if rr:
+        for e in EN:
+            S = {s: v for s, v in cells_for(rr, "feature", e).items() if "mat" in v and "biased" in v}
+            if S:
+                check_ci(f"PenTen{EN[e]}Kept", [kept(v, "mat", False) for v in S.values()])
+                check_ci(f"PenTen{EN[e]}TopPen", [v["mat"]["top3_pen"] for v in S.values()], pct=True)
+    rr = load_runs(res, "nocoord")
+    if rr:
+        for e in ["lime", "kernelshap"]:
+            S = {s: v for s, v in cells_for(rr, "nocoord", e).items() if "mat" in v and "biased" in v}
+            if S:
+                check_ci(f"N{EN[e]}MatKept", [kept(v, "mat", False) for v in S.values()])
+                check_ci(f"N{EN[e]}MatLeak", [v["mat"]["leak"] for v in S.values()], pct=True)
+    lev = {}
+    for lam in [1.0, 0.5, 0.0]:
+        for d in load_runs(res, "feature", shuffle=lam):
+            if d["seed"] in range(5):
+                for e in EN:
+                    c = d["cells"].get(f"{e}/mat")
+                    if c:
+                        lev.setdefault(e, {}).setdefault(d["seed"], []).append((d["trigger_morans_I"],
+                                                                                c["queries_routed_to_f"]))
+    for e, per in lev.items():
+        sl = [np.polyfit(*zip(*pts), 1)[0] for pts in per.values() if len(pts) >= 3]
+        if sl:
+            mu, hw, n = check_ci(f"SlopeMoran{EN[e]}", sl, sign=True)
+            check_str(f"RuleCfiveFeature{EN[e]}", "leak depends on Moran's I" if not (mu - hw <= 0 <= mu + hw)
+                      else "no detectable dependence")
+
     # outcome check (E7)
     e7 = R / "residual_diagnostic/per_seed.csv"
     if e7.exists():

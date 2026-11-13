@@ -1,0 +1,26 @@
+\begin{table}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{llrrrrrrr}
+\toprule
+Explainer & \makecell[b]{Deployed \\ model} & \makecell[b]{Top 3, \\ penalised \\ homes (\%)} & \makecell[b]{Top 3, all \\ homes (\%)} & \makecell[b]{Penalty share \\ kept} & \makecell[b]{Fidelity, all \\ homes (\%)} & \makecell[b]{Fidelity, \\ penalised \\ homes (\%)} & \makecell[b]{Queries \\ reaching $f$ \\ (\%)} & Detector AUC \\
+\midrule
+LIME & Biased model, no scaffold & 100.0 $\pm$ 0.0 & 67.3 $\pm$ 9.2 & 1.00 $\pm$ 0.00 & -- & -- & -- & -- \\
+ & Scaffold, generic detector & 100.0 $\pm$ 0.0 & 59.1 $\pm$ 12.0 & 0.96 $\pm$ 0.01 & 100.0 $\pm$ 0.0 & 100.0 $\pm$ 0.0 & 95.8 $\pm$ 1.2 & 0.96 $\pm$ 0.01 \\
+ & Scaffold, matched detector (90\%) & 0.0 $\pm$ 0.0 & 0.1 $\pm$ 0.3 & 0.02 $\pm$ 0.02 & 95.9 $\pm$ 1.3 & 97.4 $\pm$ 4.6 & 0.0 $\pm$ 0.0 & 1.00 $\pm$ 0.00 \\
+\midrule
+KernelSHAP & Biased model, no scaffold & 100.0 $\pm$ 0.0 & 86.3 $\pm$ 4.7 & 1.00 $\pm$ 0.00 & -- & -- & -- & -- \\
+ & Scaffold, generic detector & 97.0 $\pm$ 2.4 & 38.2 $\pm$ 14.0 & 0.52 $\pm$ 0.05 & 74.4 $\pm$ 1.3 & 73.8 $\pm$ 7.2 & 41.1 $\pm$ 2.1 & 0.73 $\pm$ 0.01 \\
+ & Scaffold, matched detector (90\%) & 99.5 $\pm$ 1.4 & 51.7 $\pm$ 16.9 & 0.67 $\pm$ 0.07 & 89.5 $\pm$ 2.0 & 85.9 $\pm$ 11.2 & 53.6 $\pm$ 3.1 & 0.78 $\pm$ 0.01 \\
+\midrule
+GeoShapley & Biased model, no scaffold & 100.0 $\pm$ 0.0 & 86.6 $\pm$ 4.5 & 1.00 $\pm$ 0.00 & -- & -- & -- & -- \\
+ & Scaffold, generic detector & 95.7 $\pm$ 4.1 & 41.6 $\pm$ 12.9 & 0.54 $\pm$ 0.06 & 74.4 $\pm$ 1.3 & 73.8 $\pm$ 7.2 & 45.0 $\pm$ 2.5 & 0.70 $\pm$ 0.01 \\
+ & Scaffold, matched detector (90\%) & 100.0 $\pm$ 0.0 & 56.6 $\pm$ 16.1 & 0.72 $\pm$ 0.07 & 89.7 $\pm$ 2.1 & 87.9 $\pm$ 9.8 & 60.8 $\pm$ 3.2 & 0.72 $\pm$ 0.01 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\caption{Feature design: the penalty is triggered by the tract share column. Mean $\pm$ 95\% interval over seeds; 200 explained homes per seed. Penalty share kept = signed attribution to the trigger on penalised homes divided by the same under the biased model served directly. Top 3 = share of explained homes whose trigger attribution (in absolute value) is among the three largest, on the penalised homes and on all 200. Fidelity = share of the explained (real) homes the scaffold serves with $f$; on penalised homes it is the share that still receive the penalty. AUC = probability that a real home scores higher than an explainer query on the detector.}
+\label{tab:main_feature}
+\end{table}

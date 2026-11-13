@@ -49,7 +49,7 @@ Jobs queued for draft v1 (scripts/run_matched_attack.py arguments), with status
   [x] --design feature --seed 3 --audit-bg 200
   [x] --design feature --seed 4 --audit-bg 200
 
-## q_extra.txt: extra: autocorrelation (C5), penalty 0.10, no-coordinate design -- 13/20 completed
+## q_extra.txt: extra: autocorrelation (C5), penalty 0.10, no-coordinate design -- 20/20 completed
   [x] --design feature --seed 0 --shuffle 0.5 --skip-honest-shapley
   [x] --design feature --seed 1 --shuffle 0.5 --skip-honest-shapley
   [x] --design feature --seed 2 --shuffle 0.5 --skip-honest-shapley
@@ -63,13 +63,13 @@ Jobs queued for draft v1 (scripts/run_matched_attack.py arguments), with status
   [x] --design feature --seed 0 --penalty 0.10 --skip-honest-shapley --frontier
   [x] --design feature --seed 1 --penalty 0.10 --skip-honest-shapley --frontier
   [x] --design feature --seed 2 --penalty 0.10 --skip-honest-shapley --frontier
-  [ ] --design feature --seed 3 --penalty 0.10 --skip-honest-shapley --frontier
-  [ ] --design feature --seed 4 --penalty 0.10 --skip-honest-shapley --frontier
-  [ ] --design nocoord --seed 0
-  [ ] --design nocoord --seed 1
-  [ ] --design nocoord --seed 2
-  [ ] --design nocoord --seed 3
-  [ ] --design nocoord --seed 4
+  [x] --design feature --seed 3 --penalty 0.10 --skip-honest-shapley --frontier
+  [x] --design feature --seed 4 --penalty 0.10 --skip-honest-shapley --frontier
+  [x] --design nocoord --seed 0
+  [x] --design nocoord --seed 1
+  [x] --design nocoord --seed 2
+  [x] --design nocoord --seed 3
+  [x] --design nocoord --seed 4
 
 ## q_main_late.txt: main seeds 5-9 (dropped for time) -- 0/10 completed
   [ ] --design feature --seed 5 --skip-honest-shapley --frontier

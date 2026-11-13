@@ -1,0 +1,17 @@
+\begin{table}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{lrrrrrr}
+\toprule
+Design & Seeds & Honest $R^2$ & \makecell[b]{Innocuous \\ $R^2$} & \makecell[b]{Test homes \\ penalised \\ (\%)} & \makecell[b]{Penalised \\ among 200 \\ explained} & \makecell[b]{Raster = \\ tract file \\ (\%)} \\
+\midrule
+Feature & 5 & 0.87 $\pm$ 0.01 & 0.65 $\pm$ 0.04 & 15.9 $\pm$ 1.5 & 32.2 $\pm$ 6.5 & -- \\
+Location & 5 & 0.87 $\pm$ 0.01 & 0.65 $\pm$ 0.04 & 15.9 $\pm$ 1.4 & 32.0 $\pm$ 6.1 & 100.0 $\pm$ 0.1 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\caption{Data and models per design, mean $\pm$ 95\% interval over seeds. $R^2$ on the 600 test homes. The raster column checks that the model's coordinate lookup puts each test home in the same tract as the spatial join in the data file.}
+\label{tab:data}
+\end{table}

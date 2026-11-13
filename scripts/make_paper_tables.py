@@ -276,7 +276,7 @@ def main():
     main_table("nocoord", "tab:main_nocoord", ["biased", "gen", "mat"])
 
     # macros for the prose (feature design, main numbers)
-    for design, tagd in [("feature", "F"), ("location", "L")]:
+    for design, tagd in [("feature", "F"), ("location", "L"), ("nocoord", "N")]:
         if design not in S:
             continue
         Sd = S[design]
@@ -683,6 +683,9 @@ def main():
             kp, kh = cell(Sc, e, "mat", "penalty_share_kept")
             if np.isfinite(kp):
                 macro_ci(f"PenTen{ENAME[e]}Kept", kp, kh)
+                macro_ci(f"PenTen{ENAME[e]}TopPen", *cell(Sc, e, "mat", "top3_pen"), pct=True)
+                macro_ci(f"PenTen{ENAME[e]}BiasedTopPen", *cell(Sc, e, "biased", "top3_pen"), pct=True)
+                macro_ci(f"PenTen{ENAME[e]}FiftyKept", *cell(Sc, e, "mat50", "penalty_share_kept"))
 
     # ------------------------------------------------------------------ E7 outcome diagnostic
     e7 = R / "residual_diagnostic/summary.csv"

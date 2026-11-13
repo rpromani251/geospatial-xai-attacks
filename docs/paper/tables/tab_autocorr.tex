@@ -1,0 +1,26 @@
+\begin{table}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{llrrrr}
+\toprule
+\makecell[b]{Trigger \\ Moran's $I$} & Explainer & \makecell[b]{Generic: \\ queries \\ reaching $f$ \\ (\%)} & \makecell[b]{Matched: \\ queries \\ reaching $f$ \\ (\%)} & \makecell[b]{Matched: \\ penalty share \\ kept} & Seeds \\
+\midrule
+0.83 & LIME & 95.8 $\pm$ 1.2 & 0.0 $\pm$ 0.0 & 0.02 $\pm$ 0.02 & 5 \\
+ & KernelSHAP & 41.1 $\pm$ 2.1 & 53.6 $\pm$ 3.1 & 0.67 $\pm$ 0.07 & 5 \\
+ & GeoShapley & 45.0 $\pm$ 2.5 & 60.8 $\pm$ 3.2 & 0.72 $\pm$ 0.07 & 5 \\
+\midrule
+0.22 & LIME & 96.2 $\pm$ 1.6 & 0.0 $\pm$ 0.0 & 0.01 $\pm$ 0.00 & 5 \\
+ & KernelSHAP & 47.3 $\pm$ 2.2 & 64.9 $\pm$ 2.4 & 0.74 $\pm$ 0.03 & 5 \\
+ & GeoShapley & 50.6 $\pm$ 2.5 & 70.4 $\pm$ 3.4 & 0.76 $\pm$ 0.06 & 5 \\
+\midrule
+0.00 & LIME & 95.9 $\pm$ 1.9 & 0.0 $\pm$ 0.0 & 0.01 $\pm$ 0.01 & 5 \\
+ & KernelSHAP & 53.6 $\pm$ 2.4 & 63.7 $\pm$ 4.3 & 0.75 $\pm$ 0.06 & 5 \\
+ & GeoShapley & 56.5 $\pm$ 2.4 & 68.9 $\pm$ 3.2 & 0.77 $\pm$ 0.05 & 5 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\caption{Spatial autocorrelation of the trigger, lowered by giving a share of homes the trigger value of a random other home (seeds 0--4 at every level). Mean $\pm$ 95\% interval.}
+\label{tab:autocorr}
+\end{table}

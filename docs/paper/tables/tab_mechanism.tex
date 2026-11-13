@@ -1,0 +1,26 @@
+\begin{table}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{llrrrrr}
+\toprule
+\makecell[b]{Design, \\ explainer} & \makecell[b]{Attacker \\ fidelity \\ target} & Fidelity (\%) & \makecell[b]{Predicted \\ share kept} & \makecell[b]{Routing \\ average} & \makecell[b]{Measured \\ share kept} & Seeds \\
+\midrule
+Feature, GeoShapley & 90\% & 89.7 $\pm$ 2.1 & 0.72 $\pm$ 0.07 & 0.68 $\pm$ 0.06 & 0.72 $\pm$ 0.07 & 5 \\
+ & 75\% & 75.0 $\pm$ 5.8 & 0.50 $\pm$ 0.03 & 0.47 $\pm$ 0.04 & 0.50 $\pm$ 0.03 & 5 \\
+ & 50\% & 52.1 $\pm$ 3.3 & 0.29 $\pm$ 0.03 & 0.28 $\pm$ 0.02 & 0.29 $\pm$ 0.03 & 5 \\
+\midrule
+Feature, KernelSHAP & 90\% & 89.5 $\pm$ 2.0 & 0.67 $\pm$ 0.07 & 0.64 $\pm$ 0.07 & 0.67 $\pm$ 0.07 & 5 \\
+ & 75\% & 74.9 $\pm$ 4.8 & 0.47 $\pm$ 0.05 & 0.45 $\pm$ 0.05 & 0.47 $\pm$ 0.05 & 5 \\
+ & 50\% & 50.5 $\pm$ 4.8 & 0.24 $\pm$ 0.02 & 0.25 $\pm$ 0.03 & 0.24 $\pm$ 0.02 & 5 \\
+\midrule
+Location, GeoShapley (raw share) & 90\% & 88.8 $\pm$ 4.0 & 0.65 $\pm$ 0.07 & 0.68 $\pm$ 0.07 & 0.65 $\pm$ 0.07 & 5 \\
+ & 75\% & 74.5 $\pm$ 4.4 & 0.42 $\pm$ 0.09 & 0.46 $\pm$ 0.08 & 0.42 $\pm$ 0.09 & 5 \\
+ & 50\% & 52.1 $\pm$ 5.5 & 0.21 $\pm$ 0.05 & 0.26 $\pm$ 0.05 & 0.21 $\pm$ 0.05 & 5 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\caption{Mechanism check on the penalised explained homes. \emph{Predicted}: an independent Monte Carlo evaluation of Equation~(\ref{eq:sizes}) for the scaffold, divided by the same for the biased model, with the attack's detector and thresholds and the auditor's background rows (200 hybrids per home and coalition size; pre-specified, rule M). \emph{Routing average}: the plain mean over coalition sizes of the share of with-trigger hybrids the detector routes to $f$ (descriptive, not pre-specified). \emph{Measured}: the penalty share kept in the attack run of the same seed; in the location design the raw share (not net of the honest model), which is what the routing decomposition predicts. Because \emph{Predicted} evaluates the same Shapley average with the same detector, its agreement with \emph{Measured} checks the decomposition and the implementation; the routing average is the substantive approximation. Mean $\pm$ 95\% interval over seeds.}
+\label{tab:mechanism}
+\end{table}

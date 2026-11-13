@@ -1,8 +1,17 @@
 \section{Per-seed results}
 \tabinput{tab_perseed}
 
-\section{Detector diagnostics}
+\section{Detector diagnostics and the design without coordinates}
 \tabinput{tab_detectors}
+
+\paragraph{Design without coordinates.} Table~\ref{tab:main_nocoord} repeats the feature design with the coordinates
+removed from every model (LIME and KernelSHAP only; GeoShapley needs coordinates). LIME is again fully fooled (share
+kept \NLIMEMatKept). KernelSHAP keeps \NKernelSHAPMatKept, more than with coordinates (\FKernelSHAPMatKept), and
+\NKernelSHAPMatLeak\% of its queries reach $f$ against \FKernelSHAPMatLeak\%. This fits the autocorrelation result (rule C5,
+Results): without coordinates the detector cannot reject hybrids whose tract share is
+inconsistent with their location. With two fewer players the coalition structure also changes, so the comparison is
+indicative only.
+
 \tabinput{tab_main_nocoord}
 
 \section{Reproducibility}
