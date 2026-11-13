@@ -6,12 +6,17 @@
 \tabinput{tab_main_nocoord}
 
 \section{Reproducibility}
-\paragraph{Code.} \texttt{scripts/run\_matched\_attack.py} (one design and seed per call; resumable; every detector
-and every block of 25 explained homes is cached; all writes are atomic), \texttt{scripts/summarize\_matched\_attack.py}
-(seed-level tables), \texttt{scripts/mechanism\_routing.py} (Section~\ref{sec:mechanism}),
-\texttt{scripts/run\_residual\_diagnostic.py} (outcome check), \texttt{scripts/make\_paper\_tables.py} and
-\texttt{scripts/make\_paper\_figures\_matched.py} (every table, figure and number in this draft). The job lists that
-were run are in \texttt{docs/paper/data/queues\_run.txt}.
+\paragraph{Code.} All in \texttt{scripts/}:
+\begin{itemize}
+  \item \texttt{run\_matched\_attack.py}: one design and seed per call; resumable; every detector and every block of
+        25 explained homes is cached; all writes are atomic;
+  \item \texttt{summarize\_matched\_attack.py}: seed-level tables;
+  \item \texttt{mechanism\_routing.py}: Section~\ref{sec:mechanism};
+  \item \texttt{run\_residual\_diagnostic.py}: the outcome check;
+  \item \texttt{make\_paper\_tables.py} and \texttt{make\_paper\_figures\_matched.py}: every table, figure and
+        number in this draft.
+\end{itemize}
+The job lists that were run are in \texttt{docs/paper/data/queues\_run.txt}.
 
 \paragraph{Environment.} Python \VerPython\ on \VerMachine, numpy \VerNumpy, scikit-learn \VerSklearn, XGBoost
 \VerXgb, shap \VerShap, lime 0.2.0.1, geoshapley 0.2.1.1. Before any run we reproduced the reference run at seed 42,

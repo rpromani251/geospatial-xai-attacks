@@ -1,6 +1,6 @@
 \documentclass[11pt]{article}
 \usepackage[margin=1in]{geometry}
-\usepackage{amsmath,amssymb,booktabs,enumitem,microtype,graphicx,xcolor}
+\usepackage{amsmath,amssymb,booktabs,enumitem,microtype,graphicx,xcolor,adjustbox,makecell}
 \usepackage[hidelinks]{hyperref}
 \usepackage[round]{natbib}
 \setlist{itemsep=2pt,topsep=4pt}
@@ -9,13 +9,14 @@
 \newcommand{\todo}[1]{\textcolor{red!70!black}{[\textbf{TODO:} #1]}}
 \newcommand{\citeneeded}[1]{\textcolor{blue!60!black}{[CITE: #1]}}
 \input{tables/numbers}
-\newcommand{\tabinput}[1]{\IfFileExists{tables/#1.tex}{\input{tables/#1}}{\todo{table #1 not generated yet}}}
-\newcommand{\figinput}[3]{\IfFileExists{figures/#1.pdf}{\begin{figure}[t]\centering\includegraphics[width=#2\linewidth]{figures/#1}\caption{#3}\label{fig:#1}\end{figure}}{\todo{figure #1 not generated yet}}}
+\IfFileExists{tables/numbers_missing.tex}{\input{tables/numbers_missing}}{}
+\newcommand{\tabinput}[1]{\IfFileExists{tables/#1.tex}{\input{tables/#1}}{\todo{table \detokenize{#1} not generated yet}}}
+\newcommand{\figinput}[3]{\IfFileExists{figures/#1.pdf}{\begin{figure}[t]\centering\includegraphics[width=#2\linewidth]{figures/#1}\caption{#3}\label{fig:#1}\end{figure}}{\todo{figure \detokenize{#1} not generated yet}}}
 
 \title{The estimator, not the geography:\\ scaffold attacks hide a racial price penalty from LIME, KernelSHAP and GeoShapley\\[6pt]
 \large Draft v1 for discussion with Peng Luo}
 \author{Robert Romani}
-\date{\todo{date} --- every number in this draft is generated from the result files; see Appendix C}
+\date{\today\ --- every number in this draft is generated from the result files; see Appendix C}
 
 \begin{document}
 \maketitle
@@ -63,7 +64,15 @@ We ask five questions.
   \item Do the answers survive other model families, auditors who change the explainer's settings, stronger
         attackers, a smaller penalty and weaker spatial autocorrelation of the biased attribute?
 \end{enumerate}
-\todo{one-paragraph summary of findings, written last from the final tables}
+In brief: all three explainers can be fooled. LIME is fooled completely, keeping \FLIMEMatKept\ of the penalty while
+the deployed model charges \FLIMEMatFid\% of real homes; an earlier report that LIME resists the attack in a
+geographic setting came from a detector that did not match LIME's sampler. KernelSHAP and GeoShapley keep
+\FKernelSHAPMatKept\ and \FGeoShapleyMatKept\ of the penalty when the attacker serves the bias to about 90\% of real
+homes, and the share they keep falls roughly in step with the share of homes the attacker is willing to spare.
+GeoShapley is no harder to fool than KernelSHAP, and under attack its location effect shrinks while its
+feature-by-location interactions roughly double. The share a Shapley explainer keeps is close to the average share of
+its coalition hybrids that the detector cannot tell from real homes. \todo{one sentence on robustness (rule R) once
+all runs are in.} Finally, a residual check that uses no explainer at all finds the penalised homes.
 
 % =====================================================================================
 \section{Background}
@@ -136,8 +145,8 @@ where the trigger exceeds 0.25:
   f(x) = h(x) - \delta\,\1\{T(x) > 0.25\}.
 \end{equation}
 With the price on a base-10 log scale, $\delta = 0.30$ multiplies the predicted price by $10^{-0.3} \approx 0.50$:
-a penalty of one half. \todo{earlier project documents describe this as a 26\% penalty, which assumed natural logs;
-the CHANGELOG lists every place this changes} The innocuous model $\psi$ is a second XGBoost regressor (300 trees,
+a penalty of one half.\footnote{Earlier project documents gave this as a 26\% penalty, which assumes natural
+logarithms; Appendix~D and the repository's CHANGELOG list every correction of this kind.} The innocuous model $\psi$ is a second XGBoost regressor (300 trees,
 depth 5) on the eight structural features only, so any explanation of it is free of location and demographics.
 Table~\ref{tab:data} gives the fit of both on the test homes.
 
@@ -182,8 +191,11 @@ about 600 of 1,024, which we seed per run.
 
 \subsection{What we measure}
 For explained home $i$ with attribution vector $\phi(x_i)$, trigger set $J$ (the \pct\ column; both UTM columns for
-LIME and KernelSHAP in the location design; the GEO player for GeoShapley in the location design) and penalised set
-$P = \{i : T(x_i) > 0.25\}$:
+LIME and KernelSHAP in the location design; the location player for GeoShapley in the location design) and penalised
+set $P = \{i : T(x_i) > 0.25\}$. GeoShapley's attributions enter in the package's Shapley-equivalent form, in which
+each feature-by-location interaction is split equally between the feature and the location player; the
+location player therefore carries the intrinsic GEO effect plus half of every interaction, and
+Table~\ref{tab:geo} reports the GEO effect and the interactions separately. The measures are:
 \begin{align}
   \text{signed attribution} \quad & a = \frac{1}{|P|}\sum_{i \in P}\sum_{j \in J}\phi_j(x_i), \\
   \text{penalty share kept} \quad & K = a^{\text{deployed}} / a^{\text{biased}}, \label{eq:K}\\
@@ -217,7 +229,8 @@ home with one or two values swapped in. Both ends look real to a detector. If $\
 hybrids routed to $f$, the share of the penalty kept is roughly the average of $\rho_k$ over sizes, and the attacker
 can lower it only by rejecting near-real points, which also rejects real homes. We test this by estimating each term
 of \eqref{eq:sizes} by Monte Carlo with the attack's own detector, background and thresholds (200 hybrids per home
-and size) and comparing the prediction with the measured $K$ (rule M below).
+and size, drawn independently of the attack run) and comparing the prediction with the measured $K$ (rule M below).
+We also report, as a description that was not specified in advance, the plain average over sizes of $\rho_k$.
 
 \subsection{Robustness}
 \begin{itemize}
@@ -283,8 +296,8 @@ contrasts are paired by seed. The rules below were fixed before the runs.
 
 \section*{Data and code availability}
 Housing sample: \texttt{seattle\_sample\_3k.csv} from the GeoShapley repository. Demographics: ACS 2011--2015 table
-B03002 and 2015 TIGER/Line tracts, US Census Bureau. Code: \texttt{scripts/run\_matched\_attack.py} and the scripts
-listed in Appendix C, with fixed seeds.
+B03002 and 2015 TIGER/Line tracts, US Census Bureau. Code: the scripts listed in Appendix~C, run with fixed seeds;
+repository \texttt{geospatial-xai-attacks}, branch \texttt{paper-draft-v1}.
 
 \bibliographystyle{plainnat}
 \begin{thebibliography}{99}

@@ -1,1 +1,178 @@
-\todo{results}
+% Every number below is a macro from tables/numbers.tex (scripts/make_paper_tables.py). Rule outcomes are quoted
+% from the same file (\Rule... macros), so a changed outcome shows up in the text rather than contradicting it.
+
+\subsection{Models and detectors}
+The honest model explains the test prices well ($R^2$ \HonestRtwoFeature\ in the feature design, \HonestRtwoLocation\
+in the location design) and the innocuous model, which sees neither location nor demographics, less well
+(\PsiRtwoFeature\ and \PsiRtwoLocation; Table~\ref{tab:data}). The biased model penalises \SharePenFeature\% of test
+homes, about \NPenFeature\ of the 200 explained homes in each seed. In the location design the model's coordinate
+lookup puts \RasterAgree\% of test homes in the same tract as the spatial join in the data file.
+
+The matched detectors separate LIME's queries from real homes completely (AUC \FLIMEMatAuc), but separate the
+Shapley explainers' queries only partly (AUC \FKernelSHAPMatAuc\ for KernelSHAP and \FGeoShapleyMatAuc\ for
+GeoShapley in the feature design). This difference, not the attack recipe, drives everything that follows.
+
+\subsection{A scaffold hides the penalty from all three explainers}
+\figinput{F2_main}{0.66}{Penalty share kept in the feature design (1 = the explanation shows the whole penalty, as it
+does when the biased model is served directly; 0 = none of it). Mean and 95\% interval over seeds.}
+
+\tabinput{tab_main_feature}
+
+\paragraph{Feature design.} Served directly, the biased model's penalty is plain in every explanation: the trigger
+is among the three most important features for \FLIMEBiasedTop\% (LIME), \FKernelSHAPBiasedTop\% (KernelSHAP) and
+\FGeoShapleyBiasedTop\% (GeoShapley) of the explained homes, with a signed attribution on penalised homes of about
+\FKernelSHAPBiasedSigned\ in log$_{10}$ price (Table~\ref{tab:main_feature}).
+
+The generic detector of \citet{slack2020fooling} does not fool LIME here: it lets \FLIMEGenLeak\% of LIME's queries
+through to $f$, and LIME keeps \FLIMEGenKept\ of the penalty. This is the source of the earlier project finding that
+LIME resists the attack in a geographic setting (Appendix~D); it is a failure of the detector, not a property of
+LIME. With a detector matched to LIME's own sampler, no LIME query reaches $f$ (\FLIMEMatLeak\%), the scaffold still
+serves $f$ to \FLIMEMatFid\% of the explained homes, and LIME keeps \FLIMEMatKept\ of the penalty, with the trigger in
+the top three for \FLIMEMatTop\% of homes. LIME is \RuleConePrimeFeatureLIME.
+
+Against the Shapley explainers the matched scaffold, at \FKernelSHAPMatFid\% and \FGeoShapleyMatFid\% fidelity, cuts
+the penalty to \FKernelSHAPMatKept\ (95\% interval \FKernelSHAPMatKeptLo--\FKernelSHAPMatKeptHi) for KernelSHAP and
+\FGeoShapleyMatKept\ (\FGeoShapleyMatKeptLo--\FGeoShapleyMatKeptHi) for GeoShapley, and the trigger drops out of the
+top three for about half of the homes (\FKernelSHAPMatTop\% and \FGeoShapleyMatTop\% remain). Rule C1 (Holm-corrected)
+gives LIME \RuleConeFeatureLIME, KernelSHAP \RuleConeFeatureKernelSHAP\ and GeoShapley \RuleConeFeatureGeoShapley;
+by rule C1$'$ KernelSHAP is \RuleConePrimeFeatureKernelSHAP\ and GeoShapley \RuleConePrimeFeatureGeoShapley. The detector cannot do better because \FKernelSHAPMatLeak\% of KernelSHAP's and
+\FGeoShapleyMatLeak\% of GeoShapley's queries look real enough to be served by $f$.
+
+\paragraph{Location design.} Here location has a legitimate price effect, so even the honest model's explanation
+puts a negative location attribution on the homes the biased model penalises (\LKernelSHAPHonestSigned\ for
+KernelSHAP). Table~\ref{tab:main_location} therefore gives the share kept both raw and net of the honest model. The
+LIME-matched scaffold removes location from LIME's explanation altogether: the raw share is \LLIMEMatKeptRaw, location
+is in the top three for \LLIMEMatTop\% of homes against \LLIMEHonestTop\% under the honest model, and the net share
+is negative (\LLIMEMatKept): LIME now shows less location effect than an honest model would. KernelSHAP and
+GeoShapley keep \LKernelSHAPMatKept\ and \LGeoShapleyMatKept\ of the penalty net of the honest model (raw
+\LKernelSHAPMatKeptRaw\ and \LGeoShapleyMatKeptRaw), at fidelity \LKernelSHAPMatFid\% and \LGeoShapleyMatFid\%.
+Location stays in their top three for most homes (\LKernelSHAPMatTop\% and \LGeoShapleyMatTop\%), as it should for a
+housing model; what the scaffold removes is about half of the penalty carried by it. In this design rule C1 gives
+LIME \RuleConeLocationLIME, KernelSHAP \RuleConeLocationKernelSHAP\ and GeoShapley \RuleConeLocationGeoShapley, and
+rule C1$'$ gives LIME \RuleConePrimeLocationLIME, KernelSHAP \RuleConePrimeLocationKernelSHAP\ and GeoShapley
+\RuleConePrimeLocationGeoShapley.
+
+\tabinput{tab_main_location}
+
+\subsection{What hiding costs: the stealth--fidelity frontier}
+\figinput{F3_frontier}{0.92}{The stealth--fidelity frontier. Each filled marker is the matched detector at a stricter
+threshold (90\%, 75\% and 50\% fidelity on the calibration homes); hollow markers are the generic detector at 0.5.
+The location panel shows the share kept net of the honest model. Mean and 95\% interval over seeds in both
+directions.}
+
+An attacker who wants to hide more from a Shapley explainer has one lever: withhold the bias from more real homes.
+Lowering the matched threshold so that 75\% and then 50\% of real homes receive $f$ lowers KernelSHAP's share kept
+from \FKernelSHAPMatKept\ to \FKernelSHAPMatSeventyFiveKept\ and \FKernelSHAPMatFiftyKept, and GeoShapley's from
+\FGeoShapleyMatKept\ to \FGeoShapleyMatSeventyFiveKept\ and \FGeoShapleyMatFiftyKept\ (Table~\ref{tab:frontier},
+Figure~\ref{fig:F3_frontier}). The share kept falls roughly in step with fidelity. Even at 50\% fidelity --- a
+scaffold that spares half the homes it was built to penalise --- the trigger is still in the top three for
+\FKernelSHAPMatFiftyTop\% (KernelSHAP) and \FGeoShapleyMatFiftyTop\% (GeoShapley) of homes.
+
+The generic detector, trained on different perturbations and run at a fixed threshold, reaches
+\FKernelSHAPGenFid\% fidelity and a share kept of \FKernelSHAPGenKept\ (KernelSHAP) and \FGeoShapleyGenKept\
+(GeoShapley), on the same curve as the matched detector within the seed intervals. Within the detectors we tried, the
+trade-off is set by where the explainer queries the model, not by how the attacker builds its detector. In the
+location design the net share falls to \LKernelSHAPMatSeventyFiveKept\ and \LGeoShapleyMatSeventyFiveKept\ at 75\%
+fidelity and to about zero at 50\% (\LKernelSHAPMatFiftyKept, \LGeoShapleyMatFiftyKept).
+
+\tabinput{tab_frontier}
+
+\subsection{GeoShapley is fooled like KernelSHAP, and its decomposition changes}
+\paragraph{No detectable difference from KernelSHAP (rule C2).} Paired by seed, GeoShapley minus KernelSHAP in the
+share kept under the matched scaffold is \FGeoMinusKsKept\ (interval \FGeoMinusKsKeptLo\ to \FGeoMinusKsKeptHi) in the
+feature design and \LGeoMinusKsKept\ (\LGeoMinusKsKeptLo\ to \LGeoMinusKsKeptHi) in the location design: feature
+design, \RuleCtwoFeatureGeoMinusKs; location design, \RuleCtwoLocationGeoMinusKs. GeoShapley's queries are
+somewhat harder to tell from real homes (difference in detector AUC \FGeoMinusKsAuc\ in the feature design), consistent
+with its moving both coordinates together so that every hybrid sits at a real location, but this does not translate
+into a detectable difference in what the attacker can hide. Treating location as a joint player does not make an
+explainer harder to fool; the coalition construction it shares with KernelSHAP decides that.
+
+\paragraph{The decomposition moves (rule C3).} Under the matched scaffold the intrinsic location effect on penalised
+homes moves towards zero and the feature-by-location interactions grow (Table~\ref{tab:geo},
+Figure~\ref{fig:F4_geoshapley_decomposition}). In the feature design GEO on penalised homes goes from
+\FGeoBiasedGeoPen\ under the biased model to \FGeoMatGeoPen\ under the matched scaffold, and the per-home sum of
+absolute interaction effects from \FGeoBiasedInt\ to \FGeoMatInt. In the location design GEO goes from
+\LGeoBiasedGeoPen\ (honest model: \LGeoHonestGeoPen) to \LGeoMatGeoPen, and the interactions from \LGeoBiasedInt\ to
+\LGeoMatInt. Each change has a paired interval that excludes zero. The scaffold's routing depends on how real a hybrid
+looks rather than on any single feature, and GeoShapley reports the resulting discontinuities as features acting
+differently at different locations. An auditor who reads only the GEO map sees less of the penalty than the location
+player as a whole carries.
+
+\figinput{F4_geoshapley_decomposition}{0.82}{GeoShapley's decomposition by deployment: the intrinsic location effect
+(GEO) on penalised homes, and the per-home sum of absolute feature-by-location interaction effects. Mean and 95\%
+interval over seeds.}
+
+\tabinput{tab_geo}
+
+\subsection{Why: efficiency and coalition sizes}
+\paragraph{Efficiency.} Under the matched scaffold the Shapley explanations of penalised homes still carry
+\FKernelSHAPMatGapTotal\ (KernelSHAP) and \FGeoShapleyMatGapTotal\ (GeoShapley) of the penalty gap the biased model's
+explanation puts between penalised and unpenalised homes: \FKernelSHAPMatKept\ and \FGeoShapleyMatKept\ on the trigger
+and \FKernelSHAPMatReloc\ and \FGeoShapleyMatReloc\ moved to other features, most of it to \FKernelSHAPMatRelocTo.
+Because the background term in the efficiency identity is the same for every home, the rest can leave the
+explanation only through explained homes that the scaffold itself serves with $\psi$. LIME's explanation carries
+\FLIMEMatGapTotal\ of the gap. The penalty that efficiency keeps in a Shapley explanation can be moved but
+not removed while the explained home is served by $f$.
+
+\paragraph{Routing by coalition size.} Figure~\ref{fig:F7_mechanism} shows the share of KernelSHAP's hybrids routed
+to $f$ at each coalition size. It is U-shaped: \MechFeatureKernelSHAPRhoFirst\ for a background home with only the
+trigger swapped in, \MechFeatureKernelSHAPRhoLast\ for the explained home itself ($k = \MechFeatureKernelSHAPM$), and
+\MechFeatureKernelSHAPRhoMin\ at its lowest ($k = \MechFeatureKernelSHAPRhoMinK$). Both ends of the coalition range
+are near-real homes the detector cannot reject without rejecting real homes; only the middle is far enough from the
+data to be routed away, and equation~\eqref{eq:sizes} gives every size the same weight. Stricter thresholds lower the
+whole curve, the ends included, which is why hiding costs fidelity.
+
+\paragraph{Prediction (rule M).} The independent Monte Carlo evaluation of equation~\eqref{eq:sizes} predicts the
+measured share kept with a mean absolute error of \MechFeatureKernelSHAPMAE\ for KernelSHAP (seed-to-seed standard
+deviation of the measured share \MechFeatureKernelSHAPSD; \RuleMechFeatureKernelSHAP), \MechFeatureGeoShapleyMAE\ for
+GeoShapley in the feature design (\RuleMechFeatureGeoShapley) and \MechLocationGeoShapleyMAE\ in the location design
+(\RuleMechLocationGeoShapley; Table~\ref{tab:mechanism}). The plain average of the routing rates over sizes, which
+ignores how the penalty is spread across sizes, is within \MechFeatureKernelSHAPRhoMAE\ of the measured share for
+KernelSHAP: to a first approximation, \emph{the share of the penalty a Shapley explainer keeps is the average share of
+its hybrids the detector cannot reject}.
+
+\figinput{F7_mechanism}{0.92}{Mechanism. Left: share of with-trigger hybrids routed to $f$ by coalition size, at the
+three attacker thresholds (feature design). Right: predicted against measured penalty share kept, one point per seed
+and threshold; crosses are the plain average of the routing rates.}
+
+\tabinput{tab_mechanism}
+
+\subsection{Robustness}
+\paragraph{Model families and audit settings.} Table~\ref{tab:robust} and Figure~\ref{fig:F8_robustness} repeat the
+feature-design attack with random forests (honest $R^2$ \HonestRtwoForest) and neural networks (\HonestRtwoNet) in
+place of XGBoost, and against auditors who change the explainer's settings after the attacker has trained its
+detector. In \RobHold\ of \RobCells\ explainer--configuration cells the C1$'$ class is the same as in the main result
+(rule R); exceptions: \RobBreakList. \todo{one or two sentences on the direction of the settings effects once all
+seeds are in: does a larger background or $k$-means background raise the share kept, does LIME's Gaussian sampler
+escape the quartile-trained detector?}
+
+\tabinput{tab_robust}
+\figinput{F8_robustness}{0.85}{Penalty share kept under the matched scaffold across model families and audit
+settings the attacker did not train for (feature design). Mean and 95\% interval over seeds.}
+
+\paragraph{Spatial autocorrelation of the trigger.} \todo{C5 result from Table~\ref{tab:autocorr} and
+Figure~\ref{fig:F6_autocorrelation}: slope of the matched leak on Moran's $I$ (\RuleCfiveFeature).}
+\tabinput{tab_autocorr}
+\figinput{F6_autocorrelation}{0.66}{Queries reaching $f$ under the matched scaffold as the trigger's spatial
+autocorrelation is lowered. Mean and 95\% interval over seeds.}
+
+\paragraph{A smaller penalty.} \todo{Table~\ref{tab:penalty010}: share kept at $\delta = 0.10$ (LIME \PenTenLIMEKept,
+KernelSHAP \PenTenKernelSHAPKept, GeoShapley \PenTenGeoShapleyKept).}
+\tabinput{tab_penalty010}
+
+\subsection{An outcome-based check sees what the explainers miss}
+No explainer is needed to find this penalty. On the 600 held-out homes, the 8-nearest-neighbour mean of the
+deployed model's residuals separates penalised from unpenalised homes with AUC \EsevenScaffoldAucLagThirty\ at
+$\delta = 0.30$ and \EsevenAucLagScaffoldTen\ (interval \EsevenAucLagScaffoldTenLo--\EsevenAucLagScaffoldTenHi) at
+$\delta = 0.10$, for the scaffold that fools LIME completely (Table~\ref{tab:e7}, Figure~\ref{fig:F5_outcome_check}).
+The check loses power only for penalties of a few percent (AUC \EsevenScaffoldAucLagTwo\ at $\delta = 0.02$). It costs
+the auditor few false alarms: LISA flags \EsevenHonestFlag\% of the honest model's unpenalised homes as low--low
+clusters. The scaffold cannot evade this check without changing what real homes are charged, because it is computed
+from served predictions and observed prices only. By rule E7 (\RuleEsevenFeature) the check is reported here; it is a
+complement to explanation-based audits, not a defence we evaluate against adaptive attackers.
+
+\figinput{F5_outcome_check}{0.6}{Outcome-based check: AUC of the local mean residual for the penalised homes, by
+penalty size, for the biased model and the LIME-matched scaffold; the line marks the honest model. Mean and 95\%
+interval over seeds.}
+
+\tabinput{tab_e7}

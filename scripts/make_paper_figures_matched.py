@@ -206,7 +206,7 @@ def f5_e7(R, out):
     ax.set_xlabel("Penalty (log$_{10}$ price)")
     ax.set_ylabel("AUC of local mean residual\nfor the penalised homes")
     ax.set_ylim(0.4, 1.0)
-    ax.legend(loc="lower right", fontsize=7.5)
+    ax.legend(loc="upper left", fontsize=7.5, frameon=False)
     save(fig, out, "F5_outcome_check")
 
 
@@ -251,22 +251,28 @@ def f7_mechanism(R, out):
     fig, axes = plt.subplots(1, 2, figsize=(7.4, 3.1))
     ax = axes[0]
     ls = {"taustar": "-", "fid75": "--", "fid50": ":"}
+    seen = []
     for p in files:
         key = Path(p).stem.replace("routing_by_size_", "")
         design, e = key.split("_")[:2]
         if design != "feature":
             continue
+        seen.append(e)
         Rb = pd.read_csv(p)
         g = Rb.groupby(["tau_name", "k_with_trigger"]).rho_with.mean().reset_index()
         for tn in ["taustar", "fid75", "fid50"]:
             q = g[g.tau_name == tn]
-            ax.plot(q.k_with_trigger, q.rho_with, ls=ls[tn], color=COL[e], marker=MRK[e], ms=4, lw=1.5,
-                    label=f"{NAME[e]}, {dict(taustar='90%', fid75='75%', fid50='50%')[tn]}")
+            ax.plot(q.k_with_trigger, q.rho_with, ls=ls[tn], color=COL[e], marker=MRK[e], ms=4, lw=1.5)
     ax.set_xlabel("Coalition size $k$ including the trigger\n($k = M$: the explained home itself)")
     ax.set_ylabel("Share of hybrids routed to $f$")
     ax.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1.0))
-    ax.set_ylim(0, 1.02)
-    ax.legend(fontsize=6.5, ncol=2, loc="lower center")
+    ax.set_ylim(0, 1.2)
+    ax.set_yticks([0, 0.2, 0.4, 0.6, 0.8, 1.0])
+    from matplotlib.lines import Line2D
+    hs = [Line2D([], [], color=COL[e], marker=MRK[e], ms=4, lw=1.5, label=NAME[e]) for e in seen]
+    hs += [Line2D([], [], color=INK2, ls=ls[t], lw=1.2, label=f"fidelity {lab}")
+           for t, lab in [("taustar", "90%"), ("fid75", "75%"), ("fid50", "50%")]]
+    ax.legend(handles=hs, fontsize=6.5, ncol=2, loc="upper center", frameon=False, handlelength=2.6)
     ax.set_title("Routing by coalition size (feature design)", loc="left", fontsize=9, color=INK)
     ax = axes[1]
     for p in sorted(glob.glob(str(R / "mechanism/predicted_vs_measured_*.csv"))):
@@ -279,13 +285,20 @@ def f7_mechanism(R, out):
             continue
         ax.scatter(C.measured_share_kept, C.predicted_share_kept, marker=MRK[e] if design == "feature" else "D",
                    facecolors=COL[e] if design == "feature" else "none", edgecolors=COL[e], s=28, lw=1.2,
-                   label=f"{NAME[e]}, {design}")
+                   label=f"{NAME[e]}, {design}", zorder=3)
+        rb = Path(p).parent / f"routing_by_size_{key}.csv"
+        if rb.exists():
+            ra = pd.read_csv(rb).groupby(["seed", "tau_name"]).rho_with.mean().rename("rho_avg").reset_index()
+            Cm = C.merge(ra, on=["seed", "tau_name"])
+            ax.scatter(Cm.measured_share_kept, Cm.rho_avg, marker="x", color=COL[e], s=16, lw=0.9, alpha=0.8,
+                       zorder=2, label="routing average" if "routing average" not in
+                       [t.get_label() for t in ax.collections] else None)
     ax.plot([0, 1], [0, 1], color=INK2, lw=0.8)
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     ax.set_xlabel("Measured penalty share kept")
-    ax.set_ylabel("Predicted from routing rates")
-    ax.legend(fontsize=7, loc="upper left")
+    ax.set_ylabel("Predicted share kept")
+    ax.legend(fontsize=7, loc="upper left", frameon=False)
     ax.set_title("Prediction against measurement", loc="left", fontsize=9, color=INK)
     fig.tight_layout()
     save(fig, out, "F7_mechanism")

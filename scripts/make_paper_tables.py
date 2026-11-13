@@ -46,37 +46,54 @@ def ci(x):
     return float(x.mean()), float(tq(len(x)) * x.std(ddof=1) / np.sqrt(len(x))), len(x)
 
 
-def f(mu, hw=np.nan, d=3, pct=False, sign=False):
+def f(mu, hw=np.nan, d=2, pct=False, sign=False):
     if mu is None or not np.isfinite(mu):
         return "--"
     k = 100.0 if pct else 1.0
     d = 1 if pct else d
     s = f"{mu * k:+.{d}f}" if sign else f"{mu * k:.{d}f}"
+    if float(s) == 0:                       # no "-0.00"
+        s = f"{0:.{d}f}"
     s = s.replace("-", "$-$")
     if hw is not None and np.isfinite(hw):
         s += f" $\\pm$ {hw * k:.{d}f}"
     return s
 
 
-def macro(name, value, d=3, pct=False, sign=False):
+def macro(name, value, d=2, pct=False, sign=False):
     """Register \\name -> formatted value (no interval)."""
     MACROS[name] = f(value, d=d, pct=pct, sign=sign) if not isinstance(value, str) else value
 
 
-def macro_ci(name, mu, hw, d=3, pct=False, sign=False):
+def macro_ci(name, mu, hw, d=2, pct=False, sign=False):
     """\\name = mean, \\nameLo / \\nameHi = 95% interval ends."""
     macro(name, mu, d, pct, sign)
     macro(name + "Lo", mu - hw if np.isfinite(hw) else np.nan, d, pct, sign)
     macro(name + "Hi", mu + hw if np.isfinite(hw) else np.nan, d, pct, sign)
 
 
+def wrap(h, width=13):
+    """Header cell on several lines (makecell), breaking at spaces."""
+    words, lines, cur = h.split(" "), [], ""
+    for w in words:
+        if cur and len(cur) + 1 + len(w) > width:
+            lines.append(cur)
+            cur = w
+        else:
+            cur = f"{cur} {w}".strip()
+    lines.append(cur)
+    return "\\makecell[b]{" + " \\\\ ".join(lines) + "}" if len(lines) > 1 else h
+
+
 def table(path, cols, rows, caption, label, colspec=None, notes=None):
     colspec = colspec or ("l" * 2 + "r" * (len(cols) - 2))
-    out = ["\\begin{table}[t]", "\\centering", "\\small", f"\\begin{{tabular}}{{{colspec}}}", "\\toprule",
-           " & ".join(cols) + " \\\\", "\\midrule"]
+    out = ["\\begin{table}[t]", "\\centering", "\\footnotesize", "\\setlength{\\tabcolsep}{3.5pt}",
+           "\\begin{adjustbox}{max width=\\linewidth}", f"\\begin{{tabular}}{{{colspec}}}", "\\toprule",
+           " & ".join(wrap(c) for c in cols) + " \\\\", "\\midrule"]
     for r in rows:
         out.append("\\midrule" if r == "MID" else " & ".join(r) + " \\\\")
-    out += ["\\bottomrule", "\\end{tabular}", f"\\caption{{{caption}}}", f"\\label{{{label}}}"]
+    out += ["\\bottomrule", "\\end{tabular}", "\\end{adjustbox}", f"\\caption{{{caption}}}",
+            f"\\label{{{label}}}"]
     if notes:
         out.insert(-2, f"\\par\\smallskip\\parbox{{0.95\\linewidth}}{{\\footnotesize {notes}}}")
     out.append("\\end{table}")
@@ -235,7 +252,8 @@ def main():
         table(T / f"tab_main_{design}.tex", cols, rows,
               {"feature": "Feature design: the penalty is triggered by the tract share column. ",
                "location": "Location design: the penalty is decided inside the model from the coordinates; the trigger "
-                           "is location (both UTM columns for LIME and KernelSHAP, the joint GEO player for GeoShapley). ",
+                           "is location (both UTM columns for LIME and KernelSHAP; for GeoShapley the location player, which carries "
+                           "the intrinsic GEO effect plus half of each feature-by-location interaction). ",
                "nocoord": "Design without coordinates (LIME and KernelSHAP only). "}[design]
               + "Mean $\\pm$ 95\\% interval over seeds; 200 explained homes per seed. Penalty share kept = signed "
                 "attribution to the trigger on penalised homes divided by the same under the biased model served "
@@ -262,10 +280,14 @@ def main():
                     continue
                 tg = f"{tagd}{ENAME[e]}{MNAME[m]}"
                 for k, nm, pct in [(kk, "Kept", False), ("top3", "Top", True), ("fidelity", "Fid", True),
-                                   ("leak", "Leak", True), ("auc", "Auc", False), ("signed_pen", "Signed", False)]:
+                                   ("leak", "Leak", True), ("auc", "Auc", False), ("signed_pen", "Signed", False),
+                                   ("gap_total", "GapTotal", False), ("gap_relocated", "Reloc", False)]:
                     mu, hw = cell(Sd, e, m, k)
                     if np.isfinite(mu):
                         macro_ci(tg + nm, mu, hw, pct=pct)
+                r = Sd[(Sd.explainer == e) & (Sd.deployment == m)]
+                if "top_target_mode" in r and isinstance(r.top_target_mode.iloc[0], str):
+                    macro(tg + "RelocTo", r.top_target_mode.iloc[0].replace("_", "\\_"))
                 if design == "location":
                     mu, hw = cell(Sd, e, m, "penalty_share_kept")
                     if np.isfinite(mu):
@@ -367,6 +389,10 @@ def main():
             g3 = cell(Sd, "geoshapley", m, "intera_abs_sum")
             rows.append([design.capitalize() if m in ("honest", "biased") and (rows == [] or rows[-1] == "MID")
                          else "", DNAME[m], f(*g1), f(*g2), f(*g3)])
+            gt = f"{design[0].upper()}Geo{MNAME[m]}"
+            macro_ci(gt + "GeoPen", *g1)
+            macro_ci(gt + "GeoAbs", *g2)
+            macro_ci(gt + "Int", *g3)
         rows.append("MID")
     if rows:
         table(T / "tab_geo.tex", ["Design", "Deployed model", "GEO on penalised homes", "Mean $|$GEO$|$",
@@ -387,6 +413,19 @@ def main():
         if rb.exists():
             shutil.copy(rb, D)
         design, e = key.split("_")[:2]
+        # descriptive simplification (not pre-specified): the plain average over coalition sizes of the share of
+        # with-trigger hybrids routed to f
+        if rb.exists():
+            RB = pd.read_csv(rb)
+            ra = RB.groupby(["seed", "tau_name"]).rho_with.mean().rename("rho_avg").reset_index()
+            C = C.merge(ra, on=["seed", "tau_name"], how="left")
+            rs = RB[RB.tau_name == "taustar"].groupby("k_with_trigger").rho_with.mean()
+            mtag = f"Mech{design.capitalize()}{ENAME[e]}"
+            macro(mtag + "RhoFirst", float(rs.iloc[0]), d=2)
+            macro(mtag + "RhoLast", float(rs.iloc[-1]), d=2)
+            macro(mtag + "RhoMin", float(rs.min()), d=2)
+            macro(mtag + "RhoMinK", str(int(rs.idxmin())))
+            macro(mtag + "M", str(int(RB.M.iloc[0])))
         first = True
         for tn in ["taustar", "fid75", "fid50"]:
             c = C[C.tau_name == tn]
@@ -395,9 +434,16 @@ def main():
             pm, ph, n = ci(c.predicted_share_kept)
             mm, mh, _ = ci(c.measured_share_kept) if "measured_share_kept" in c else (np.nan, np.nan, 0)
             fm, fh, _ = ci(c.fidelity_explained)
+            rm, rh, _ = ci(c.rho_avg) if "rho_avg" in c else (np.nan, np.nan, 0)
             rows.append([f"{design.capitalize()}, {ENAME[e]}" if first else "",
                          {"taustar": "90\\%", "fid75": "75\\%", "fid50": "50\\%"}[tn], f(fm, fh, pct=True),
-                         f(pm, ph), f(mm, mh), str(n)])
+                         f(pm, ph), f(rm, rh), f(mm, mh), str(n)])
+            ttag = {"taustar": "Ninety", "fid75": "SeventyFive", "fid50": "Fifty"}[tn]
+            mtag = f"Mech{design.capitalize()}{ENAME[e]}"
+            macro_ci(mtag + "Pred" + ttag, pm, ph)
+            macro_ci(mtag + "Meas" + ttag, mm, mh)
+            macro_ci(mtag + "Rho" + ttag, rm, rh)
+            macro_ci(mtag + "Fid" + ttag, fm, fh, pct=True)
             first = False
         rows.append("MID")
         if "measured_share_kept" in C:
@@ -406,15 +452,22 @@ def main():
             ok = mae <= sd
             mech.append(dict(rule="M", design=design, explainer=e, estimate=mae, sd_measured=sd,
                              outcome="prediction holds" if ok else "identity only"))
-            macro(f"Mech{design.capitalize()}{ENAME[e]}MAE", mae)
-            macro(f"Mech{design.capitalize()}{ENAME[e]}SD", sd)
+            macro(f"Mech{design.capitalize()}{ENAME[e]}MAE", mae, d=3)
+            macro(f"Mech{design.capitalize()}{ENAME[e]}SD", sd, d=3)
+            if "rho_avg" in C:
+                macro(f"Mech{design.capitalize()}{ENAME[e]}RhoMAE",
+                      float((C.rho_avg - C.measured_share_kept).abs().mean()), d=3)
     if rows:
         table(T / "tab_mechanism.tex", ["Design, explainer", "Attacker fidelity target", "Fidelity (\\%)",
-                                        "Predicted share kept", "Measured share kept", "Seeds"], rows[:-1],
-              "Mechanism check. The prediction averages, over coalition sizes, the detector's routing of the "
-              "explainer's own hybrids (Monte Carlo, the auditor's background rows, penalised explained homes); the "
-              "measured value is the penalty share kept in the attack run of the same seed. Mean $\\pm$ 95\\% "
-              "interval over seeds.", "tab:mechanism", colspec="llrrrr")
+                                        "Predicted share kept", "Routing average", "Measured share kept", "Seeds"],
+              rows[:-1],
+              "Mechanism check on the penalised explained homes. \\emph{Predicted}: an independent Monte Carlo "
+              "evaluation of Equation~(\\ref{eq:sizes}) for the scaffold, divided by the same for the biased model, "
+              "with the attack's detector and thresholds and the auditor's background rows (200 hybrids per home and "
+              "coalition size; pre-specified, rule M). \\emph{Routing average}: the plain mean over coalition sizes of "
+              "the share of with-trigger hybrids the detector routes to $f$ (descriptive, not pre-specified). "
+              "\\emph{Measured}: the penalty share kept in the attack run of the same seed. Mean $\\pm$ 95\\% "
+              "interval over seeds.", "tab:mechanism", colspec="llrrrrr")
     decisions += mech
 
     # ------------------------------------------------------------------ robustness
@@ -462,6 +515,21 @@ def main():
               "same changed settings. Class = fully fooled (trigger in top three $\\le$ 5\\%, share kept $\\le$ 0.10, "
               "fidelity $\\ge$ 90\\%) or partly fooled.", "tab:robust", colspec="llrrrrl")
     decisions += rob
+    for mdl, nm in [("rf", "Forest"), ("mlp", "Net")]:
+        rm = runs(res, "feature", model=mdl)
+        if rm:
+            hr, hw_, n = ci([d["honest_r2"] for d in rm])
+            macro_ci(f"HonestRtwo{nm}", hr, hw_)
+            pr, pw, _ = ci([d["psi_r2"] for d in rm])
+            macro_ci(f"PsiRtwo{nm}", pr, pw)
+    rr_ = [r for r in rob if not r["config"].startswith("Main")]
+    if rr_:
+        macro("RobCells", str(len(rr_)))
+        macro("RobHold", str(sum(r["outcome"].startswith("holds") for r in rr_)))
+        br = [f"{r['config']} ({ENAME[r['explainer']]}: {r['outcome'].split('(')[1].rstrip(')')})"
+              for r in rr_ if not r["outcome"].startswith("holds")]
+        macro("RobBreakList", "; ".join(br) if br else "none")
+        macro("RobConfigs", str(len({r["config"] for r in rr_})))
 
     # ------------------------------------------------------------------ extra: autocorrelation, penalty, no coordinates
     rows, slopes = [], []
@@ -624,13 +692,23 @@ def main():
     if rr:
         v = rr[0]["versions"]
         macro("VerPython", v.get("python", "?"))
-        macro("VerMachine", v.get("machine", "?"))
+        macro("VerMachine", v.get("machine", "?").replace("_", "\\_"))
         macro("VerShap", v.get("shap", "?"))
         macro("VerXgb", v.get("xgboost", "?"))
         macro("VerSklearn", v.get("sklearn", "?"))
         macro("VerNumpy", v.get("numpy", "?"))
         secs = [sum(c.get("seconds", 0) for c in d["cells"].values()) for d in rr]
         macro("MinutesPerSeed", float(np.mean(secs)) / 60, d=0)
+
+    # ------------------------------------------------------------------ rule outcomes as macros (prose checks)
+    RN = {"C1": "Cone", "C1'": "ConePrime", "C2": "Ctwo", "M": "Mech", "C5": "Cfive", "E7": "Eseven"}
+    for d in decisions:
+        if d["rule"] not in RN or (d["rule"] == "C2" and d.get("metric") not in (None, "penalty_share_kept",
+                                                                                  "penalty_share_kept_excess")):
+            continue
+        ex = d.get("explainer")
+        ex = "" if not isinstance(ex, str) else ("GeoMinusKs" if "-" in ex else ENAME.get(ex, ex))
+        macro(f"Rule{RN[d['rule']]}{d['design'].capitalize()}{ex}", d["outcome"])
 
     # ------------------------------------------------------------------ write
     Dd = pd.DataFrame(decisions)
@@ -643,6 +721,22 @@ def main():
             k2 = k
         lines.append(f"\\newcommand{{\\{k2}}}{{{v}}}")
     (T / "numbers.tex").write_text("\n".join(lines) + "\n")
+    # macros the prose uses that this run could not produce (results not in yet): visible placeholders, so the
+    # draft always compiles and a missing number is obvious in the PDF
+    import re
+    defined = {l.split("{\\", 1)[1].split("}", 1)[0] for l in lines[1:]}
+    used = set()
+    for tf in ["abstract", "results", "discussion", "conclusion", "appendix", "fooling_geoxai_draft_v1"]:
+        tp = ROOT / "docs/paper" / f"{tf}.tex"
+        if tp.exists():
+            used |= set(re.findall(r"\\([A-Z][a-z]*[A-Z][A-Za-z]*)", tp.read_text()))
+    known_latex = {"IfFileExists", "LaTeX", "TeX"}
+    missing = sorted(used - defined - known_latex)
+    (T / "numbers_missing.tex").write_text(
+        "% generated: macros used in the text but not produced by this run\n"
+        + "".join(f"\\providecommand{{\\{m}}}{{\\textbf{{\\textcolor{{red}}{{??{m}}}}}}}\n" for m in missing))
+    if missing:
+        print(f"{len(missing)} macros used in the text are not produced yet: {', '.join(missing)}")
     pd.set_option("display.width", 220)
     print(Dd.to_string())
     print(f"{len(MACROS)} macros, tables in {T}")

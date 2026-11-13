@@ -5,3 +5,9 @@
 *.fls
 *.fdb_latexmk
 *.synctex.gz
+# generated outputs: ignored while the runs are in progress (previews from partial seeds);
+# committed once, from the final runs, by removing these lines
+/fooling_geoxai_draft_v1.pdf
+/tables/
+/figures/
+/data/
