@@ -10,6 +10,8 @@ withholding the penalty from real homes. Treating location as a joint player pro
 most a few points more of the penalty than KernelSHAP, and under attack its location effect shrinks while spurious
 feature-by-location interactions appear. The difference between explainers is set by their estimators, not by their
 treatment of space: efficiency keeps the penalty inside a Shapley explanation, and the share kept is close to the
-average, over coalition sizes, of the share of hybrids the detector routes to the biased model. \todo{one clause on
-generality once the robustness runs are in: model families and audit settings, rule R.} A residual check that needs
+average, over coalition sizes, of the share of hybrids the detector routes to the biased model. The results are
+the same with random forests and neural networks, because the explainers' queries do not depend on the model, and
+survive changes to the Shapley background; only switching LIME to a sampler the detector was not trained on recovers
+part of the penalty. A residual check that needs
 no explainer separates the penalised homes from the rest (AUC \EsevenAucLagScaffoldTen\ for a 21\% penalty).

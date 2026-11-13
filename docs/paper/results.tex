@@ -174,8 +174,14 @@ place of XGBoost, and against auditors who change the explainer's settings after
 detector. In \RobHold\ of \RobCells\ explainer--configuration cells the C1$'$ class is the same as in the main result
 (rule R); exceptions: \RobBreakList. % CHECK against final Table 7 (rf, mlp, bg200 pending at writing)
 With random forests the matched scaffold leaves LIME \RobRandomforestLIMEKept\ of the penalty and KernelSHAP and
-GeoShapley \RobRandomforestKernelSHAPKept\ and \RobRandomforestGeoShapleyKept; with neural networks
-\RobNeuralnetLIMEKept, \RobNeuralnetKernelSHAPKept\ and \RobNeuralnetGeoShapleyKept. Changing the Shapley background
+GeoShapley \RobRandomforestKernelSHAPKept\ and \RobRandomforestGeoShapleyKept\ (\RobRandomforestKernelSHAPN\ seeds);
+with neural networks \RobNeuralnetLIMEKept, \RobNeuralnetKernelSHAPKept\ and \RobNeuralnetGeoShapleyKept. The model
+family barely matters, for a structural reason. The explainers' queries do not depend on the model, so the detector,
+its threshold and its routing are the same for every family (seed by seed, the fidelities and the queries reaching $f$
+are identical). Because neither $h$ nor $\psi$ uses the trigger, the model enters the trigger's attribution only
+through $(r_{S\cup j} - r_S)\,(h - \psi)$, where $r_S$ indicates that hybrid $(x_S, b)$ is routed to $f$: only hybrids
+whose routing changes when the trigger is swapped in contribute. The penalty term,
+$-\delta\,(r_{S\cup j}\1_{S\cup j} - r_S\1_S)$ with $\1_S$ indicating that the hybrid is penalised, is model-free. Changing the Shapley background
 moves the share kept by a few hundredths at most, and more LIME samples change nothing. The exception is LIME's
 Gaussian sampler, discussed in Section~\ref{sec:discussion-audit}: its queries are not the ones the detector was
 trained on, \RobLIMEGaussiansampleLIMELeak\% of them reach $f$, and LIME keeps \RobLIMEGaussiansampleLIMEKept\ of

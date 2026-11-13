@@ -75,7 +75,9 @@ importance ranking, but cannot take it out of those homes' explanations. Treatin
 GeoShapley little: in the feature design \FCtwoClause, in the location design \LCtwoClause, and under attack its
 location effect shrinks while its feature-by-location interactions roughly double. The share a Shapley explainer keeps
 is close to the average, over coalition sizes, of the share of its hybrids that the detector routes to the biased
-model. \todo{one sentence on robustness (rule R) once all runs are in.} Finally, a residual check that uses no
+model. These results hold with random forests and neural networks and when the auditor changes the Shapley
+background; only an auditor who switches LIME to a sampler the attacker did not anticipate recovers part of the
+penalty. Finally, a residual check that uses no
 explainer separates the penalised homes from the rest.
 
 % =====================================================================================
