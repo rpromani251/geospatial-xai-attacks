@@ -301,7 +301,9 @@ contrasts are paired by seed. The rules below were fixed before the runs.
   \item One metropolitan area in this draft. \todo{Cook County runs for the submission version}
   \item The penalty is synthetic and large; Table~\ref{tab:penalty010} repeats the main result at a smaller one.
   \item The attacker knows which explainer is used; Table~\ref{tab:robust} varies the settings it does not know.
-  \item The adversary is static: defences and attackers that adapt to them are out of scope.
+  \item The adversary is static: defences and attackers that adapt to them are out of scope. We also did not vary the
+        attacker's detector (its model class or the number of harvested queries). A stronger detector could lower the
+        share kept at a given fidelity, so our shares describe one reasonable attacker, not the strongest possible.
   \item The auditor's Shapley background is drawn from the training homes, which the matched detector saw as real
         during training; near-empty coalitions may look real partly because the detector has memorised those rows.
         A $k$-means background, whose rows no real home matches exactly, changes the share kept little
