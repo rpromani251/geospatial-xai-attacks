@@ -86,7 +86,9 @@ def f1_map(out):
     cb = fig.colorbar(pc, ax=ax, shrink=0.7, pad=0.02)
     cb.set_label("Tract share of Black and Latino residents (ACS 2011–2015)")
     cb.outline.set_visible(False)
-    ax.legend(loc="lower left", markerscale=4, fontsize=7.5)
+    from matplotlib.ticker import MaxNLocator
+    ax.xaxis.set_major_locator(MaxNLocator(4))
+    ax.legend(loc="upper left", bbox_to_anchor=(0.0, -0.11), ncol=2, markerscale=4, fontsize=7.5)
     ax.set_title("King County sales and tract demographics; black outline: tract share above 0.25", fontsize=9,
                  color=INK, loc="left")
     save(fig, out, "F1_study_area")
@@ -202,7 +204,9 @@ def f5_e7(R, out):
         ax.axhline(float(h.auc_lag.iloc[0]), color="#8a8984", lw=1, ls=(0, (1, 0)))
         ax.annotate("honest model", (0.3, float(h.auc_lag.iloc[0])), xytext=(-2, 4), textcoords="offset points",
                     ha="right", fontsize=7.5, color=INK2)
-    ax.axhline(0.8, color=GRID, lw=1)
+    ax.axhline(0.8, color=INK2, lw=0.8, ls=(0, (4, 3)))
+    ax.annotate("0.80 (rule E7)", (0.3, 0.8), xytext=(-2, -10), textcoords="offset points", ha="right",
+                fontsize=7, color=INK2)
     ax.set_xlabel("Penalty (log$_{10}$ price)")
     ax.set_ylabel("AUC of local mean residual\nfor the penalised homes")
     ax.set_ylim(0.4, 1.0)
@@ -285,20 +289,23 @@ def f7_mechanism(R, out):
             continue
         ax.scatter(C.measured_share_kept, C.predicted_share_kept, marker=MRK[e] if design == "feature" else "D",
                    facecolors=COL[e] if design == "feature" else "none", edgecolors=COL[e], s=28, lw=1.2,
-                   label=f"{NAME[e]}, {design}", zorder=3)
+                   label=f"{NAME[e]}, {design}" + (" (raw share)" if design == "location" else ""), zorder=3)
         rb = Path(p).parent / f"routing_by_size_{key}.csv"
         if rb.exists():
             ra = pd.read_csv(rb).groupby(["seed", "tau_name"]).rho_with.mean().rename("rho_avg").reset_index()
             Cm = C.merge(ra, on=["seed", "tau_name"])
             ax.scatter(Cm.measured_share_kept, Cm.rho_avg, marker="x", color=COL[e], s=16, lw=0.9, alpha=0.8,
-                       zorder=2, label="routing average" if "routing average" not in
-                       [t.get_label() for t in ax.collections] else None)
+                       zorder=2)
     ax.plot([0, 1], [0, 1], color=INK2, lw=0.8)
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     ax.set_xlabel("Measured penalty share kept")
     ax.set_ylabel("Predicted share kept")
-    ax.legend(fontsize=7, loc="upper left", frameon=False)
+    from matplotlib.lines import Line2D
+    hs, ls = ax.get_legend_handles_labels()
+    hs.append(Line2D([], [], marker="x", ls="none", color=INK2, ms=5, mew=1))
+    ls.append("routing average")
+    ax.legend(hs, ls, fontsize=7, loc="lower right", frameon=False)
     ax.set_title("Prediction against measurement", loc="left", fontsize=9, color=INK)
     fig.tight_layout()
     save(fig, out, "F7_mechanism")
@@ -317,8 +324,10 @@ def f8_robust(D, out):
             continue
         for e in ["lime", "kernelshap", "geoshapley"]:
             mu, hw = get(S, e, "mat", "penalty_share_kept")
-            if np.isfinite(mu):
-                rows.append((nm, e, mu, hw))
+            r = S[(S.explainer == e) & (S.deployment == "mat")]
+            n = int(r.seeds.iloc[0]) if not r.empty else 0
+            if np.isfinite(mu) and n >= 3:
+                rows.append((nm if n >= 5 else f"{nm} (n={n})", e, mu, hw))
     if not rows:
         return
     names = list(dict.fromkeys(r[0] for r in rows))
@@ -333,8 +342,8 @@ def f8_robust(D, out):
     ax.legend(uniq.values(), uniq.keys(), ncol=3, loc="upper center", bbox_to_anchor=(0.5, 1.0 + 0.9 / len(names)),
               fontsize=7.5)
     ax.axvline(0.10, color=INK2, lw=0.8)
-    ax.annotate("fully fooled\nbelow 0.10", (0.10, len(names) - 0.6), xytext=(3, 0), textcoords="offset points",
-                fontsize=7, color=INK2, va="top")
+    ax.annotate("0.10: share-kept part\nof rule C1$'$", (0.10, len(names) - 0.6), xytext=(3, 0),
+                textcoords="offset points", fontsize=7, color=INK2, va="top")
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names[::-1])
     ax.set_xlim(-0.05, 1.05)

@@ -56,6 +56,25 @@ def by_feature(d, e, m, cell, dirpath):
             {n: float(W[~pen, i].mean()) for i, n in enumerate(names)})
 
 
+def top3_split(d, e, m, trig, dirpath):
+    """Share of penalised / unpenalised explained homes with the trigger among the three largest |attributions|
+    (same rank rule as run_matched_attack.summarise: ties go to the trigger)."""
+    p = Path(dirpath) / f"{d['tag']}__{e}_{m}.npz"
+    if not p.exists():
+        return {}
+    z = np.load(p)
+    W, pen, names = z["flat"], z["penalised"].astype(bool), [str(n) for n in z["names"]]
+    if not all(t in names for t in trig):
+        return {}
+    A = np.abs(W)
+    ti = [names.index(t) for t in trig]
+    ta = A[:, ti].sum(1)
+    rank = 1 + (np.delete(A, ti, axis=1) > ta[:, None]).sum(1)
+    top = rank <= 3
+    return dict(top3_pen=float(top[pen].mean()) if pen.any() else np.nan,
+                top3_unpen=float(top[~pen].mean()) if (~pen).any() else np.nan)
+
+
 def relocation(bp, bu, cp, cu, trig):
     """Penalty bookkeeping on the gap 'penalised minus unpenalised homes', relative to the biased
     reference (the gap removes the baseline shift a scaffold adds to every home).
@@ -98,16 +117,21 @@ def main():
     ap.add_argument("--audit", default="match", help="audit-settings label, e.g. bg25, bg100kmeans, lime5000")
     a = ap.parse_args()
     excl = {int(s) for s in a.exclude_seeds.split(",") if s}
-    runs = []
+    runs, skipped = [], []
     for p in sorted(glob.glob(f"{a.dir}/{a.design}_seed*.json")):
         d = json.load(open(p))
         if (d["seed"] in excl or d.get("penalty", 0.3) != a.penalty or d.get("attacker", "rf") != a.attacker
                 or d.get("harvest_scale", 1) != a.harvest_scale or d.get("shuffle", 1.0) != a.shuffle
                 or d.get("model", "xgb") != a.model or d.get("audit", "match") != a.audit):
             continue
+        if not d.get("complete"):          # a budget-limited call writes its JSON before every cell is in
+            skipped.append(d["tag"])
+            continue
         runs.append(d)
-    print(f"design={a.design}: {len(runs)} seeds {[r['seed'] for r in runs]}; "
-          f"complete={sum(r['complete'] for r in runs)}")
+    print(f"design={a.design}: {len(runs)} complete seeds {[r['seed'] for r in runs]}"
+          + (f"; skipped incomplete: {skipped}" if skipped else ""))
+    fbg = Path(a.dir) / "fidelity_by_group.csv"     # scripts/fidelity_by_group.py
+    FB = pd.read_csv(fbg).set_index(["tag", "explainer", "deployment"]) if fbg.exists() else None
     rows = []
     for d in runs:
         for e in EXPL:
@@ -121,6 +145,10 @@ def main():
                          trig_abs=c["trig_mean_abs"], top1=c["trig_top1"], top3=c["trig_top3"],
                          rank_of_mean=c["trig_rank_of_mean"], signed_pen=c["trig_signed_pen"],
                          signed_unpen=c["trig_signed_unpen"])
+                # trigger in the top three separately on penalised and unpenalised explained homes
+                trig_all = ["GEO"] if (e == "geoshapley" and d["design"] == "location") else \
+                    (["UTM_X", "UTM_Y"] if d["design"] == "location" else ["pct_black_latino"])
+                r.update(top3_split(d, e, m, trig_all, a.dir))
                 if b is not None and b["trig_signed_pen"]:
                     r["penalty_share_kept"] = (c["trig_signed_pen"] or 0.0) / b["trig_signed_pen"]
                 # same share, net of what the honest model attributes to the trigger on those homes
@@ -147,6 +175,8 @@ def main():
                     rh, qh = det["real_score_hist_explained"], c["query_score_hist"]
                     r.update(tau=c["tau"], leak=c["queries_routed_to_f"],
                              fidelity=det[op]["fidelity_explained_homes"],
+                             fid_pen=(FB.loc[(d["tag"], e, m), "fid_pen"]
+                                      if FB is not None and (d["tag"], e, m) in FB.index else np.nan),
                              pearson_r=det[op]["pearson_r_scaffold_vs_f"],
                              auc=auc_from_hists(rh, qh),
                              leak_at_fid90=leak_at_fidelity(rh, qh, 0.90),
@@ -161,7 +191,7 @@ def main():
         print("no cells yet")
         return
     df.to_csv(f"{a.dir}/per_seed_{sfx}.csv", index=False)
-    metrics = [c for c in ["trig_abs", "top1", "top3", "rank_of_mean", "signed_pen", "penalty_share_kept",
+    metrics = [c for c in ["trig_abs", "top1", "top3", "top3_pen", "top3_unpen", "fid_pen", "rank_of_mean", "signed_pen", "penalty_share_kept",
                            "penalty_share_kept_excess", "gap_kept_trigger", "gap_relocated", "gap_total",
                            "hiding_H", "leak", "fidelity", "pearson_r", "tau", "auc", "leak_at_fid90",
                            "leak_at_fid75", "leak_at_fid50", "geo_abs", "geo_signed_pen", "intera_abs_sum"]

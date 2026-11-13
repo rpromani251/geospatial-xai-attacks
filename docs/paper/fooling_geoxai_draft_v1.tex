@@ -51,8 +51,8 @@ a detector trained on each explainer's own queries. Our central finding is that 
 set by the explainer's estimator --- where it queries the model --- and not by whether the explainer knows about
 geography.} LIME samples far from real homes and can be fooled almost for free. KernelSHAP and GeoShapley satisfy
 efficiency and evaluate the explained home itself, together with many near-real hybrids, so the attacker can hide
-the penalty from them only by also withholding it from real homes. We measure that stealth--fidelity trade-off,
-explain it with a short argument about Shapley coalitions, and show that it predicts the measured trade-off.
+the penalty from them only by also withholding it from real homes. We measure that stealth--fidelity trade-off and
+explain it with an argument about Shapley coalitions that accounts for the measured trade-off.
 
 We ask five questions.
 \begin{enumerate}
@@ -61,18 +61,22 @@ We ask five questions.
   \item Does GeoShapley's treatment of location make it harder to fool than a non-spatial Shapley explainer, and what
         happens to its decomposition under attack?
   \item Why do the explainers differ?
-  \item Do the answers survive other model families, auditors who change the explainer's settings, stronger
-        attackers, a smaller penalty and weaker spatial autocorrelation of the biased attribute?
+  \item Do the answers survive other model families, auditors who change the explainer's settings, a smaller penalty
+        and weaker spatial autocorrelation of the biased attribute?
 \end{enumerate}
 In brief: all three explainers can be fooled. LIME is fooled completely, keeping \FLIMEMatKept\ of the penalty while
-the deployed model charges \FLIMEMatFid\% of real homes; an earlier report that LIME resists the attack in a
-geographic setting came from a detector that did not match LIME's sampler. KernelSHAP and GeoShapley keep
-\FKernelSHAPMatKept\ and \FGeoShapleyMatKept\ of the penalty when the attacker serves the bias to about 90\% of real
-homes, and the share they keep falls roughly in step with the share of homes the attacker is willing to spare.
-GeoShapley is no harder to fool than KernelSHAP, and under attack its location effect shrinks while its
-feature-by-location interactions roughly double. The share a Shapley explainer keeps is close to the average share of
-its coalition hybrids that the detector cannot tell from real homes. \todo{one sentence on robustness (rule R) once
-all runs are in.} Finally, a residual check that uses no explainer at all finds the penalised homes.
+the scaffold still charges \FLIMEMatFidPen\% of the penalised homes; an earlier report that LIME resists the attack in
+a geographic setting came from a detector that did not match LIME's sampler. KernelSHAP and GeoShapley keep
+\FKernelSHAPMatKept\ and \FGeoShapleyMatKept\ of the penalty when the attacker serves the biased model to about 90\%
+of real homes (\FKernelSHAPMatFidPen\% and \FGeoShapleyMatFidPen\% of the penalised ones), and the share they keep
+falls roughly in step with the share of homes the attacker is willing to spare. On the penalised homes themselves the
+trigger stays among the three largest attributions; the scaffold shrinks it and pushes it down the explainer's global
+importance ranking, but cannot take it out of those homes' explanations. Treating location as a joint player protects
+GeoShapley little: in the feature design \FCtwoClause, in the location design \LCtwoClause, and under attack its
+location effect shrinks while its feature-by-location interactions roughly double. The share a Shapley explainer keeps
+is close to the average, over coalition sizes, of the share of its hybrids that the detector routes to the biased
+model. \todo{one sentence on robustness (rule R) once all runs are in.} Finally, a residual check that uses no
+explainer separates the penalised homes from the rest.
 
 % =====================================================================================
 \section{Background}
@@ -86,7 +90,8 @@ is the attack surface.
         query is a combination of feature values that no real home has. The instance itself is the first row.
   \item \textbf{KernelSHAP} \citep{lundberg2017shap} estimates Shapley values by evaluating coalitions: the features in
         a coalition keep the instance's values and the rest are taken from a background row. With $M$ features it
-        needs $2^M - 2$ coalitions per background row (2,046 here), which it enumerates in full.
+        needs $2^M - 2$ coalitions per background row (2,046 in our feature design, 1,022 in the location design),
+        which it enumerates in full.
   \item \textbf{GeoShapley} \citep{li2024geoshapley} uses the same coalition construction but moves the two coordinates
         together as one player, so every hybrid sits at a real location. It reports an intrinsic location effect
         (GEO), location-invariant primary effects and feature-by-location interaction effects that together satisfy
@@ -176,8 +181,9 @@ Detectors never see the test homes.
 An attacker must decide how many real homes it is willing to misroute to $\psi$. We set the matched threshold on the
 400 calibration homes: $\tau^* = \min(0.5, q_{0.10})$, where $q_{0.10}$ is the 10th percentile of their detector
 scores, so at least 90\% of unseen real homes receive $f$. \emph{Fidelity} is then measured on the 200 explained homes,
-which did not set $\tau^*$. To trace the frontier we lower fidelity on purpose with the same detector, at thresholds
-giving 75\% and 50\% fidelity on the calibration homes.
+which did not set $\tau^*$. Because $f = h$ on unpenalised homes, the bias actually delivered is the fidelity on the
+penalised explained homes, which we report alongside. To trace the frontier we lower fidelity on purpose with the same
+detector, at thresholds giving 75\% and 50\% fidelity on the calibration homes.
 
 \subsection{Explainers}
 LIME with 500 samples and the default quartile sampler; KernelSHAP with a 100-row background sample, every coalition
@@ -200,13 +206,16 @@ Table~\ref{tab:geo} reports the GEO effect and the interactions separately. The 
   \text{signed attribution} \quad & a = \frac{1}{|P|}\sum_{i \in P}\sum_{j \in J}\phi_j(x_i), \\
   \text{penalty share kept} \quad & K = a^{\text{deployed}} / a^{\text{biased}}, \label{eq:K}\\
   \text{net of honest (location design)} \quad & K_{\text{net}} = (a^{\text{deployed}} - a^{\text{honest}}) / (a^{\text{biased}} - a^{\text{honest}}),\\
-  \text{trigger in top three} \quad & \tfrac{1}{N}\textstyle\sum_i \1\{\text{rank of } \textstyle\sum_{j\in J}|\phi_j(x_i)| \le 3\},\\
-  \text{fidelity} \quad & \tfrac{1}{N}\textstyle\sum_i \1\{d(x_i) \ge \tau\},\\
+  \text{trigger in top three} \quad & \tfrac{1}{|A|}\textstyle\sum_{i\in A} \1\{\text{rank of } \textstyle\sum_{j\in J}|\phi_j(x_i)| \le 3\},\\
+  \text{fidelity} \quad & \tfrac{1}{|A|}\textstyle\sum_{i\in A} \1\{d(x_i) \ge \tau\},\\
   \text{queries reaching } f \quad & \text{share of the explainer's own queries with } d \ge \tau,\\
   \text{detector AUC} \quad & \Pr\{d(x_{\text{real}}) > d(x_{\text{query}})\} + \tfrac12\Pr\{=\}.
 \end{align}
-The reference in \eqref{eq:K} is the explanation of the biased model served directly, with no scaffold: that, not the
-honest model, is what the attack has to hide. $K = 1$ means the penalty is fully visible, $K = 0$ fully hidden.
+where $A$ is either all $N = 200$ explained homes or the penalised ones, $P$; we report both. In the location design
+the trigger score of LIME and KernelSHAP is the sum over both coordinates, ranked against single features, so their
+top-three shares there are not directly comparable with GeoShapley's single location player. The reference in
+\eqref{eq:K} is the explanation of the biased model served directly, with no scaffold: that, not the honest model, is
+what the attack has to hide. $K = 1$ means the penalty is fully visible, $K = 0$ fully hidden.
 Every detector score of every query is histogrammed, so AUC and the leak at any fidelity are computed exactly
 without re-running an explainer.
 
@@ -227,10 +236,13 @@ where $(x_S, b)$ takes the players in $S$ from $x$ and the rest from $b$. The la
 home; near-complete coalitions differ from it in one or two players, and near-empty ones are a background (real)
 home with one or two values swapped in. Both ends look real to a detector. If $\rho_k$ is the share of size-$k$
 hybrids routed to $f$, the share of the penalty kept is roughly the average of $\rho_k$ over sizes, and the attacker
-can lower it only by rejecting near-real points, which also rejects real homes. We test this by estimating each term
-of \eqref{eq:sizes} by Monte Carlo with the attack's own detector, background and thresholds (200 hybrids per home
-and size, drawn independently of the attack run) and comparing the prediction with the measured $K$ (rule M below).
-We also report, as a description that was not specified in advance, the plain average over sizes of $\rho_k$.
+can lower it only by rejecting near-real points, which also rejects real homes. We estimate each term of
+\eqref{eq:sizes} by Monte Carlo with the attack's own detector, background and thresholds (200 hybrids per home and
+size, drawn independently of the attack run) and compare the result with the measured $K$ (rule M below). Because this
+evaluates the same Shapley average with the same detector, agreement confirms the size decomposition and our
+implementation rather than testing a separate hypothesis. The substantive approximation is the plain average over
+sizes of $\rho_k$, which ignores how the penalty is spread across sizes; we report it as a description that was not
+specified in advance.
 
 \subsection{Robustness}
 \begin{itemize}
@@ -258,10 +270,12 @@ contrasts are paired by seed. The rules below were fixed before the runs.
 \begin{itemize}
   \item \textbf{C1 (fooled)}: $1 - K$ under the matched scaffold has an interval above 0, Holm-corrected over the three
         explainers.
-  \item \textbf{C1$'$ (fully fooled)}: trigger in the top three for at most 5\% of homes and $K \le 0.10$ at fidelity at
-        least 90\%; otherwise \emph{partly fooled}.
-  \item \textbf{C2}: GeoShapley minus KernelSHAP in $K$, matched scaffold; an interval containing 0 reads as no
-        detectable difference.
+  \item \textbf{C1$'$ (fully fooled)}: trigger in the top three for at most 5\% of the explained homes and $K \le
+        0.10$ at fidelity at least 90\%; otherwise \emph{partly fooled}. (Computed on penalised homes only, the
+        top-three part gives the same classes.)
+  \item \textbf{C2}: GeoShapley minus KernelSHAP in $K$, matched scaffold; an interval above 0 reads as
+        ``GeoShapley slightly harder to fool'', an interval containing 0 as no detectable difference at this sample
+        size.
   \item \textbf{C3}: GeoShapley's GEO effect and interaction sums, biased against matched; a change is claimed only if
         the paired interval excludes 0.
   \item \textbf{C5}: slope of the matched leak on Moran's $I$ over at least three levels.
@@ -286,6 +300,10 @@ contrasts are paired by seed. The rules below were fixed before the runs.
   \item The penalty is synthetic and large; Table~\ref{tab:penalty010} repeats the main result at a smaller one.
   \item The attacker knows which explainer is used; Table~\ref{tab:robust} varies the settings it does not know.
   \item The adversary is static: defences and attackers that adapt to them are out of scope.
+  \item The auditor's Shapley background is drawn from the training homes, which the matched detector saw as real
+        during training; near-empty coalitions may look real partly because the detector has memorised those rows.
+        A $k$-means background, whose rows no real home matches exactly, changes the share kept little
+        (Table~\ref{tab:robust}), but a background from homes the attacker never saw would be the cleaner test.
   \item 200 explained homes per seed, of which about \NPenFeature\ are penalised; the number of seeds is in every table.
   \item Feature-design GeoShapley uses the package's sampled coalitions, so its values carry Monte Carlo error that the
         seed intervals include.

@@ -3,11 +3,13 @@ designed to separate location effects from other features. We show that a scaffo
 penalty from LIME, KernelSHAP and GeoShapley. A home-valuation model for King County, Washington, halves predicted
 prices in census tracts where Black and Latino residents exceed a quarter of the population; a detector trained on
 each explainer's own queries serves an innocuous model to the explainer and the biased model to real homes. LIME then
-shows \FLIMEMatKept\ of the penalty while \FLIMEMatFid\% of real homes still receive it. KernelSHAP and GeoShapley show
-\FKernelSHAPMatKept\ and \FGeoShapleyMatKept\ of it at about 90\% fidelity, and the attacker can hide more only by
-withholding the penalty from real homes. GeoShapley is no harder to fool than KernelSHAP, and under attack its
-location effect shrinks while spurious feature-by-location interactions appear. The difference between explainers is
-set by their estimators, not by their treatment of space: efficiency keeps the penalty inside a Shapley explanation,
-and the share kept is close to the share of coalition hybrids the detector cannot tell from real homes. \todo{one
-clause on generality once the robustness runs are in: model families and audit settings, rule R.} A residual check
-that needs no explainer finds the penalised homes (AUC \EsevenAucLagScaffoldTen\ for a 21\% penalty).
+shows \FLIMEMatKept\ of the penalty while \FLIMEMatFidPen\% of the penalised homes still pay it. KernelSHAP and
+GeoShapley show \FKernelSHAPMatKept\ and \FGeoShapleyMatKept\ of it at about 90\% fidelity; the trigger drops in their
+global importance ranking but stays prominent on the penalised homes, and the attacker can hide more only by
+withholding the penalty from real homes. Treating location as a joint player protects GeoShapley little: it keeps at
+most a few points more of the penalty than KernelSHAP, and under attack its location effect shrinks while spurious
+feature-by-location interactions appear. The difference between explainers is set by their estimators, not by their
+treatment of space: efficiency keeps the penalty inside a Shapley explanation, and the share kept is close to the
+average, over coalition sizes, of the share of hybrids the detector routes to the biased model. \todo{one clause on
+generality once the robustness runs are in: model families and audit settings, rule R.} A residual check that needs
+no explainer separates the penalised homes from the rest (AUC \EsevenAucLagScaffoldTen\ for a 21\% penalty).

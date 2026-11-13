@@ -128,7 +128,7 @@ def runs(res, design, **flt):
     out = []
     for p in sorted(glob.glob(f"{res}/{design}_seed*.json")):
         d = json.load(open(p))
-        if d["seed"] == 42:
+        if d["seed"] == 42 or not d.get("complete"):     # partial runs never enter a table or a rule
             continue
         ok = all(d.get(k, dflt) == v for k, (v, dflt) in
                  {"penalty": (flt.get("penalty", 0.30), 0.30), "model": (flt.get("model", "xgb"), "xgb"),
@@ -193,7 +193,9 @@ def main():
         if design == "location":
             ra, rw, _ = ci([d.get("raster_agrees_with_csv_tract", np.nan) for d in rr])
             row.append(f(ra, rw, pct=True))
-            macro_ci("RasterAgree", ra, rw, pct=True)
+            macro("RasterAgree", f"{ra * 100:.2f}")      # 1 decimal would print 100.0
+            macro("RasterAgreeLo", max(0.0, ra - rw) if np.isfinite(rw) else np.nan, pct=True)
+            macro("RasterAgreeHi", min(1.0, ra + rw) if np.isfinite(rw) else np.nan, pct=True)
         else:
             row.append("--")
             macro("TriggerMoran", mi, d=2)
@@ -234,21 +236,24 @@ def main():
                 if Sd[(Sd.explainer == e) & (Sd.deployment == m)].empty:
                     continue
                 top3, top3h = cell(Sd, e, m, "top3")
-                sg, sgh = cell(Sd, e, m, "signed_pen")
+                tp, tph = cell(Sd, e, m, "top3_pen")
                 kp, kph = cell(Sd, e, m, "penalty_share_kept")
                 fid, fidh = cell(Sd, e, m, "fidelity")
+                fp, fph = cell(Sd, e, m, "fid_pen")
                 lk, lkh = cell(Sd, e, m, "leak")
                 au, auh = cell(Sd, e, m, "auc")
-                row = [ENAME[e] if m == deps[0] else "", DNAME[m], f(top3, top3h, pct=True), f(sg, sgh), f(kp, kph)]
+                row = [ENAME[e] if m == deps[0] else "", DNAME[m], f(tp, tph, pct=True), f(top3, top3h, pct=True),
+                       f(kp, kph)]
                 if design == "location":
                     kx, kxh = cell(Sd, e, m, "penalty_share_kept_excess")
                     row.append(f(kx, kxh))
-                rows.append(row + [f(fid, fidh, pct=True), f(lk, lkh, pct=True), f(au, auh)])
+                rows.append(row + [f(fid, fidh, pct=True), f(fp, fph, pct=True), f(lk, lkh, pct=True), f(au, auh)])
             rows.append("MID")
         rows = rows[:-1]
-        cols = ["Explainer", "Deployed model", "Trigger in top 3 (\\%)", "Signed attribution, penalised",
+        cols = ["Explainer", "Deployed model", "Top 3, penalised homes (\\%)", "Top 3, all homes (\\%)",
                 "Penalty share kept"] + (["Share kept, net of honest"] if design == "location" else []) + \
-               ["Fidelity (\\%)", "Queries reaching $f$ (\\%)", "Detector AUC"]
+               ["Fidelity, all homes (\\%)", "Fidelity, penalised homes (\\%)", "Queries reaching $f$ (\\%)",
+                "Detector AUC"]
         table(T / f"tab_main_{design}.tex", cols, rows,
               {"feature": "Feature design: the penalty is triggered by the tract share column. ",
                "location": "Location design: the penalty is decided inside the model from the coordinates; the trigger "
@@ -260,9 +265,11 @@ def main():
                 "directly" + ("; the net share first subtracts what the honest model attributes to location on "
                               "those homes, so it is negative when an explanation shows less location effect than "
                               "even the honest model does" if design == "location" else "")
-              + ". Fidelity = share of the explained (real) homes the scaffold serves with $f$. AUC = probability "
-                "that a real home scores higher than an explainer query on the detector.", label,
-              colspec="llrrrrrrr" if design == "location" else "llrrrrrr")
+              + ". Top 3 = share of explained homes whose trigger attribution (in absolute value) is among the three "
+                "largest, on the penalised homes and on all 200. Fidelity = share of the explained (real) homes the "
+                "scaffold serves with $f$; on penalised homes it is the share that still receive the penalty. AUC = "
+                "probability that a real home scores higher than an explainer query on the detector.", label,
+              colspec="llrrrrrrrr" if design == "location" else "llrrrrrrr")
 
     main_table("feature", "tab:main_feature", ["biased", "gen", "mat"])
     main_table("location", "tab:main_location", ["honest", "biased", "gen", "mat"])
@@ -280,14 +287,23 @@ def main():
                     continue
                 tg = f"{tagd}{ENAME[e]}{MNAME[m]}"
                 for k, nm, pct in [(kk, "Kept", False), ("top3", "Top", True), ("fidelity", "Fid", True),
+                                   ("top3_pen", "TopPen", True), ("top3_unpen", "TopUnpen", True),
+                                   ("fid_pen", "FidPen", True),
                                    ("leak", "Leak", True), ("auc", "Auc", False), ("signed_pen", "Signed", False),
                                    ("gap_total", "GapTotal", False), ("gap_relocated", "Reloc", False)]:
                     mu, hw = cell(Sd, e, m, k)
                     if np.isfinite(mu):
                         macro_ci(tg + nm, mu, hw, pct=pct)
+                mu, hw = cell(Sd, e, m, "rank_of_mean")     # rank of the trigger in mean |attribution|, all homes
+                if np.isfinite(mu):
+                    macro_ci(tg + "Rank", mu, hw, d=1)
                 r = Sd[(Sd.explainer == e) & (Sd.deployment == m)]
                 if "top_target_mode" in r and isinstance(r.top_target_mode.iloc[0], str):
                     macro(tg + "RelocTo", r.top_target_mode.iloc[0].replace("_", "\\_"))
+                    pt = P[design][(P[design].explainer == e) & (P[design].deployment == m)]
+                    if "top_target" in pt:
+                        macro(tg + "RelocToN", str(int((pt.top_target == r.top_target_mode.iloc[0]).sum())))
+                        macro(tg + "RelocN", str(int(pt.top_target.notna().sum())))
                 if design == "location":
                     mu, hw = cell(Sd, e, m, "penalty_share_kept")
                     if np.isfinite(mu):
@@ -321,19 +337,31 @@ def main():
             top3 = cell(Sd, e, "mat", "top3")[0]
             kp = cell(Sd, e, "mat", kk)[0]
             fid = cell(Sd, e, "mat", "fidelity")[0]
+            tpen = cell(Sd, e, "mat", "top3_pen")[0]
             full = top3 <= 0.05 and kp <= 0.10 and fid >= 0.90
+            full_pen = tpen <= 0.05 and kp <= 0.10 and fid >= 0.90
             decisions.append(dict(rule="C1'", design=design, explainer=e, estimate=kp, top3=top3, fidelity=fid,
-                                  outcome="fully fooled" if full else "partly fooled"))
+                                  top3_pen=tpen, outcome="fully fooled" if full else "partly fooled",
+                                  outcome_top3_penalised="fully fooled" if full_pen else "partly fooled"))
         if {"geoshapley", "kernelshap"} <= set(Pd.explainer):
             for k in [kk, "auc", "leak_at_fid90", "top3"]:
                 if k not in Pd:
                     continue
                 mu, hw, n, p = paired(Pd, "geoshapley", "mat", "kernelshap", "mat", k)
                 rule = "C2" if k == kk else "C2-aux"
-                out = ("no detectable difference" if (not np.isfinite(hw) or (mu - hw) <= 0 <= (mu + hw))
-                       else ("GeoShapley keeps more" if mu > 0 else "GeoShapley keeps less")) if rule == "C2" else ""
+                out = ("no detectable difference at this sample size"
+                       if (not np.isfinite(hw) or (mu - hw) <= 0 <= (mu + hw))
+                       else ("GeoShapley slightly harder to fool" if mu > 0 else "GeoShapley easier to fool")) \
+                    if rule == "C2" else ""
                 decisions.append(dict(rule=rule, design=design, explainer="geoshapley-kernelshap", metric=k,
                                       estimate=mu, ci_half=hw, seeds=n, p=p, outcome=out))
+                if rule == "C2":
+                    macro(f"{'F' if design == 'feature' else 'L'}CtwoClause",
+                          {"no detectable difference at this sample size":
+                               "no detectable difference between GeoShapley and KernelSHAP",
+                           "GeoShapley slightly harder to fool":
+                               "GeoShapley keeps slightly more of the penalty than KernelSHAP",
+                           "GeoShapley easier to fool": "GeoShapley keeps less of the penalty than KernelSHAP"}[out])
                 tg = f"{'F' if design == 'feature' else 'L'}GeoMinusKs{ {kk: 'Kept', 'auc': 'Auc', 'leak_at_fid90': 'Leak', 'top3': 'Top'}[k] }"
                 macro_ci(tg.replace(" ", ""), mu, hw, sign=True, pct=(k == "top3" or k == "leak_at_fid90"))
         if "geo_signed_pen" in Pd:
@@ -345,6 +373,14 @@ def main():
                                       else "no detectable change"))
                 macro_ci(f"{'F' if design == 'feature' else 'L'}GeoDelta{ {'geo_signed_pen': 'Pen', 'geo_abs': 'Abs', 'intera_abs_sum': 'Int'}[k] }".replace(" ", ""),
                          mu, hw, sign=True)
+
+    if "location" in P and "geo_signed_pen" in P["location"]:
+        Pl = P["location"][P["location"].explainer == "geoshapley"].pivot(index="seed", columns="deployment",
+                                                                          values="geo_signed_pen")
+        if {"honest", "biased", "mat"} <= set(Pl.columns):
+            g = ((Pl["mat"] - Pl["honest"]) / (Pl["biased"] - Pl["honest"])).dropna()
+            mu, hw, n = ci(g.values)
+            macro_ci("LGeoGeoNetKept", mu, hw)
 
     # ------------------------------------------------------------------ frontier table
     rows = []
@@ -361,19 +397,40 @@ def main():
                 fid, fh = cell(Sd, e, m, "fidelity")
                 kp, kh = cell(Sd, e, m, kk)
                 lk, lh = cell(Sd, e, m, "leak")
-                t3, th = cell(Sd, e, m, "top3")
+                t3, th = cell(Sd, e, m, "top3_pen")
+                fp, fph = cell(Sd, e, m, "fid_pen")
                 rows.append([design.capitalize() if first and e == "kernelshap" else "",
                              ENAME[e] if first else "", {"mat": "Matched, $\\tau^*$", "mat75": "Matched, 75\\%",
                                                          "mat50": "Matched, 50\\%", "gen": "Generic, 0.5"}[m],
-                             f(fid, fh, pct=True), f(kp, kh), f(t3, th, pct=True), f(lk, lh, pct=True)])
+                             f(fid, fh, pct=True), f(fp, fph, pct=True), f(kp, kh), f(t3, th, pct=True),
+                             f(lk, lh, pct=True)])
                 first = False
+            # is the generic detector on the matched curve? per seed: generic share kept minus the matched curve
+            # (linear in fidelity through the 50/75/90% points) at the generic detector's fidelity
+            Pd = P[design]
+            dd = []
+            for s_ in sorted(Pd.seed.unique()):
+                q = Pd[(Pd.seed == s_) & (Pd.explainer == e)].set_index("deployment")
+                if not {"gen", "mat", "mat75", "mat50"} <= set(q.index):
+                    continue
+                xs = q.loc[["mat50", "mat75", "mat"], "fidelity"].values
+                ys = q.loc[["mat50", "mat75", "mat"], kk].values
+                o = np.argsort(xs)
+                dd.append(float(q.loc["gen", kk] - np.interp(q.loc["gen", "fidelity"], xs[o], ys[o])))
+            if dd:
+                mu, hw, n = ci(dd)
+                pv = float(stats.ttest_1samp(dd, 0).pvalue) if n > 1 else np.nan
+                macro_ci(f"{design[0].upper()}{ENAME[e]}GenMinusCurve", mu, hw, sign=True)
+                macro(f"{design[0].upper()}{ENAME[e]}GenMinusCurveP", pv, d=3)
         rows.append("MID")
     if rows:
-        table(T / "tab_frontier.tex", ["Design", "Explainer", "Detector, threshold", "Fidelity (\\%)",
-                                       "Penalty share kept", "Trigger in top 3 (\\%)", "Queries reaching $f$ (\\%)"],
+        table(T / "tab_frontier.tex", ["Design", "Explainer", "Detector, threshold", "Fidelity, all homes (\\%)",
+                                       "Fidelity, penalised homes (\\%)", "Penalty share kept",
+                                       "Top 3, penalised homes (\\%)", "Queries reaching $f$ (\\%)"],
               rows[:-1], "The stealth--fidelity frontier for the Shapley explainers. Each matched row uses the same "
-                         "detector with a stricter threshold. Mean $\\pm$ 95\\% interval over seeds.",
-              "tab:frontier", colspec="lllrrrr")
+                         "detector with a stricter threshold. Penalty share kept is net of the honest model in the "
+                         "location design. Mean $\\pm$ 95\\% interval over seeds.",
+              "tab:frontier", colspec="lllrrrrr")
 
     # ------------------------------------------------------------------ GeoShapley decomposition
     rows = []
@@ -435,7 +492,8 @@ def main():
             mm, mh, _ = ci(c.measured_share_kept) if "measured_share_kept" in c else (np.nan, np.nan, 0)
             fm, fh, _ = ci(c.fidelity_explained)
             rm, rh, _ = ci(c.rho_avg) if "rho_avg" in c else (np.nan, np.nan, 0)
-            rows.append([f"{design.capitalize()}, {ENAME[e]}" if first else "",
+            rows.append([f"{design.capitalize()}, {ENAME[e]}" + (" (raw share)" if design == "location" else "")
+                         if first else "",
                          {"taustar": "90\\%", "fid75": "75\\%", "fid50": "50\\%"}[tn], f(fm, fh, pct=True),
                          f(pm, ph), f(rm, rh), f(mm, mh), str(n)])
             ttag = {"taustar": "Ninety", "fid75": "SeventyFive", "fid50": "Fifty"}[tn]
@@ -466,8 +524,11 @@ def main():
               "with the attack's detector and thresholds and the auditor's background rows (200 hybrids per home and "
               "coalition size; pre-specified, rule M). \\emph{Routing average}: the plain mean over coalition sizes of "
               "the share of with-trigger hybrids the detector routes to $f$ (descriptive, not pre-specified). "
-              "\\emph{Measured}: the penalty share kept in the attack run of the same seed. Mean $\\pm$ 95\\% "
-              "interval over seeds.", "tab:mechanism", colspec="llrrrrr")
+              "\\emph{Measured}: the penalty share kept in the attack run of the same seed; in the location design the raw "
+              "share (not net of the honest model), which is what the routing decomposition predicts. Because "
+              "\\emph{Predicted} evaluates the same Shapley average with the same detector, its agreement with "
+              "\\emph{Measured} checks the decomposition and the implementation; the routing average is the "
+              "substantive approximation. Mean $\\pm$ 95\\% interval over seeds.", "tab:mechanism", colspec="llrrrrr")
     decisions += mech
 
     # ------------------------------------------------------------------ robustness
@@ -479,7 +540,7 @@ def main():
                ("Attacker: forest, leaf 5", {"--attacker": "rf_leaf5"}), ("Attacker: XGBoost", {"--attacker": "xgb"}),
                ("Attacker: 4$\\times$ harvested queries", {"--harvest-scale": "4"})]
     main_class = {d["explainer"]: d["outcome"] for d in decisions if d["rule"] == "C1'" and d["design"] == "feature"}
-    rows, rob = [], []
+    rows, rob, pending = [], [], []
     for nm, opt in configs:
         ex = [x for kv in opt.items() for x in kv]
         out = summarize(res, "--design", "feature", *ex)
@@ -492,28 +553,39 @@ def main():
         for e in EXPL:
             if Sc[(Sc.explainer == e) & (Sc.deployment == "mat")].empty:
                 continue
+            if int(Sc[(Sc.explainer == e) & (Sc.deployment == "mat")].seeds.iloc[0]) < 3:
+                pending.append(f"{nm} ({ENAME[e]})")
+                continue
             kp, kh = cell(Sc, e, "mat", "penalty_share_kept")
             fid, fh = cell(Sc, e, "mat", "fidelity")
             t3, th = cell(Sc, e, "mat", "top3")
+            tp, tph = cell(Sc, e, "mat", "top3_pen")
             n = int(Sc[(Sc.explainer == e) & (Sc.deployment == "mat")].seeds.iloc[0])
             full = t3 <= 0.05 and kp <= 0.10 and fid >= 0.90
             cls = "fully fooled" if full else "partly fooled"
             same = cls == main_class.get(e, cls)
             rob.append(dict(rule="R", design="feature", config=nm, explainer=e, estimate=kp, ci_half=kh,
                             fidelity=fid, top3=t3, seeds=n, outcome=("holds" if same else "BREAKS") + f" ({cls})"))
-            rows.append([nm if first else "", ENAME[e], f(kp, kh), f(fid, fh, pct=True), f(t3, th, pct=True), str(n),
-                         "yes" if same else "\\textbf{no}"])
+            rows.append([nm if first else "", ENAME[e], f(kp, kh), f(fid, fh, pct=True), f(t3, th, pct=True),
+                         f(tp, tph, pct=True), str(n), "yes" if same else "\\textbf{no}"])
             first = False
             key = "".join(ch for ch in nm if ch.isalnum())[:18]
             macro_ci(f"Rob{key}{ENAME[e]}Kept", kp, kh)
-        rows.append("MID")
+            lk, lkh = cell(Sc, e, "mat", "leak")
+            macro_ci(f"Rob{key}{ENAME[e]}Leak", lk, lkh, pct=True)
+            macro_ci(f"Rob{key}{ENAME[e]}TopPen", tp, tph, pct=True)
+            macro(f"Rob{key}{ENAME[e]}N", str(n))
+        if rows and rows[-1] != "MID":
+            rows.append("MID")
     if rows:
         table(T / "tab_robust.tex", ["Configuration", "Explainer", "Penalty share kept", "Fidelity (\\%)",
-                                     "Trigger in top 3 (\\%)", "Seeds", "Same class as main"], rows[:-1],
+                                     "Top 3, all homes (\\%)", "Top 3, penalised homes (\\%)", "Seeds",
+                                     "Same class as main"], rows[:-1],
               "Robustness of the matched scaffold, feature design. Audit-setting rows keep the attacker's detector "
               "trained for the default settings and change only what the auditor does; the biased reference uses the "
               "same changed settings. Class = fully fooled (trigger in top three $\\le$ 5\\%, share kept $\\le$ 0.10, "
-              "fidelity $\\ge$ 90\\%) or partly fooled.", "tab:robust", colspec="llrrrrl")
+              "fidelity $\\ge$ 90\\%, as fixed before the runs) or partly fooled. Configurations with fewer than three "
+              "complete seeds are not shown.", "tab:robust", colspec="llrrrrrl")
     decisions += rob
     for mdl, nm in [("rf", "Forest"), ("mlp", "Net")]:
         rm = runs(res, "feature", model=mdl)
@@ -530,6 +602,7 @@ def main():
               for r in rr_ if not r["outcome"].startswith("holds")]
         macro("RobBreakList", "; ".join(br) if br else "none")
         macro("RobConfigs", str(len({r["config"] for r in rr_})))
+    macro("RobPending", "; ".join(pending) if pending else "none")
 
     # ------------------------------------------------------------------ extra: autocorrelation, penalty, no coordinates
     rows, slopes = [], []
@@ -593,11 +666,12 @@ def main():
                     continue
                 kp, kh = cell(Sc, e, m, "penalty_share_kept")
                 fid, fh = cell(Sc, e, m, "fidelity")
-                t3, th = cell(Sc, e, m, "top3")
+                t3, th = cell(Sc, e, m, "top3_pen")
                 rows.append([ENAME[e] if m == "biased" else "", DNAME[m], f(t3, th, pct=True), f(kp, kh),
                              f(fid, fh, pct=True)])
             rows.append("MID")
-        table(T / "tab_penalty010.tex", ["Explainer", "Deployed model", "Trigger in top 3 (\\%)", "Penalty share kept",
+        table(T / "tab_penalty010.tex", ["Explainer", "Deployed model", "Top 3, penalised homes (\\%)",
+                                         "Penalty share kept",
                                          "Fidelity (\\%)"], rows[:-1],
               "Penalty 0.10 in log$_{10}$ price (a 21\\% price cut) instead of 0.30, feature design, seeds 0--4.",
               "tab:penalty010", colspec="llrrr")
@@ -635,6 +709,13 @@ def main():
                                   outcome="go: include section" if go else "no-go: Discussion paragraph"))
             macro_ci("EsevenAucLagScaffoldTen", aucl, float(sc.auc_lag_ci.iloc[0]))
             macro_ci("EsevenHonestFlag", flag, float(hn.lisa_flag_unpen_ci.iloc[0]), pct=True)
+            macro_ci("EsevenRecallTen", float(sc.lisa_recall_pen.iloc[0]), float(sc.lisa_recall_pen_ci.iloc[0]),
+                     pct=True)
+            macro_ci("EsevenPrecTen", float(sc.lisa_precision.iloc[0]), float(sc.lisa_precision_ci.iloc[0]),
+                     pct=True)
+            meta = R / "residual_diagnostic/meta.json"
+            if meta.exists():
+                macro("EsevenSeeds", str(json.load(open(meta))["seeds"]))
             for pen in [0.02, 0.05, 0.10, 0.20, 0.30]:
                 for mdl, nm in [("biased", "Biased"), ("scaffold_lime_matched", "Scaffold")]:
                     q = E[(E.model == mdl) & (np.isclose(E.penalty, pen))]

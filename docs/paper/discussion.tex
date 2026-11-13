@@ -7,26 +7,33 @@ Shapley explainers are harder to fool for two reasons that have nothing to do wi
 attributions to the served prediction at the explained home, so the penalty cannot leave the explanation while that
 home is served by the biased model; and their coalition hybrids include, at both ends of the size range, points that
 differ from a real home in one or two values and that a detector cannot reject without rejecting real homes.
-GeoShapley moves the two coordinates together, which keeps every hybrid at a real location and makes its queries
-slightly harder to detect, but its other players are still recombined across homes, and the middle coalitions are as
-far from the data as KernelSHAP's. Under rule C2 we find no detectable difference between the two in what the
-attacker can hide. Treating location carefully is valuable for interpretation; it is not, on its own, a defence. The
-question to ask of any explainer used in an audit is the one the routing curves answer: what share of its queries
-looks like real data?
+GeoShapley moves the two coordinates together, which keeps every hybrid at a real location. Its queries are harder
+to detect, more of its hybrids reach the biased model at every coalition size (Figure~\ref{fig:F7_mechanism}), and by
+rule C2 in the feature design \FCtwoClause, while in the location design we find \LCtwoClause. Its other players are
+still recombined across homes, so its middle coalitions are still largely routed away. Treating location carefully is
+valuable for interpretation; as a defence it helps only as far as it moves the explainer's queries towards real data,
+and here that is a few points of the penalty. The question to ask of any explainer used in an audit is the one the
+routing curves answer: what share of its queries looks like real data?
 
-\paragraph{What partial hiding means for an audit.} ``Partly fooled'' is not ``safe''. Against the matched scaffold
-KernelSHAP and GeoShapley keep between half and three quarters of the penalty, and an auditor who knows what to look
-for would still find the trigger among the leading features for about half of the penalised homes. But an audit is
-rarely a search for one named variable, and an attacker who accepts lower fidelity can do much better: at 50\%
-fidelity the scaffold still charges half of the targeted homes the full penalty while KernelSHAP shows
-\FKernelSHAPMatFiftyKept\ of it. The frontier in Figure~\ref{fig:F3_frontier} turns this into a quantity a regulator
-can reason about: for a given explainer, how much bias can be hidden at what cost in bias actually delivered.
+\paragraph{What partial hiding means for an audit.} ``Partly fooled'' is not ``safe''; nor does it mean the
+penalty has left the explanations. Against the matched scaffold KernelSHAP and GeoShapley keep between about half and three quarters of the
+penalty, and on the penalised homes themselves the trigger stays among the three largest attributions. An auditor who
+disaggregates explanations by the protected attribute, or reads the explanations of homes in the affected tracts,
+would still see it. What the scaffold removes is what a summary audit reads: the size of the effect, and the trigger's
+rank in global importance, which falls because the scaffold also shrinks the trigger's attribution on the unpenalised
+homes. An attacker who accepts lower fidelity can do more: at 50\% fidelity the scaffold still charges
+\FKernelSHAPMatFiftyFidPen\% of the targeted homes the full penalty while KernelSHAP shows \FKernelSHAPMatFiftyKept\
+of it. The frontier in Figure~\ref{fig:F3_frontier} turns this into a quantity a regulator can reason about: for a
+given explainer, how much bias can be hidden at what cost in bias actually delivered, which is the fidelity on
+penalised homes reported in Tables~\ref{tab:main_feature}--\ref{tab:frontier}.
 
 \paragraph{GeoShapley under attack.} For geographers the more specific lesson is about how GeoShapley fails. Under
 the scaffold the intrinsic location effect on penalised homes shrinks towards zero and the feature-by-location
-interactions roughly double (rule C3). A GEO map read on its own would understate the penalty, and the interaction
-terms would invite a substantive story --- features that matter differently in different places --- that is in fact
-an artefact of the attacker's routing. We did not set out to build a detector and do not evaluate one, but inflated
+interactions roughly double (rule C3). In the location design, where location carries the penalty, a GEO map read
+on its own would understate it: the GEO effect alone keeps \LGeoGeoNetKept\ of the excess penalty on penalised homes,
+against \LGeoShapleyMatKept\ for the location player as a whole. In both designs the interaction terms would invite
+a substantive story --- features that matter differently in different places --- that is in fact an artefact of the
+attacker's routing. We did not set out to build a detector and do not evaluate one, but inflated
 interactions without a corresponding change in the model's fit are a pattern worth examining in future work.
 
 \paragraph{Reconciling with earlier results.} \citet{slack2020fooling} found LIME easier to fool than SHAP on
@@ -35,14 +42,24 @@ opposite, that LIME resists the attack in a geographic setting. That result came
 trained on Gaussian noise and lets \FLIMEGenLeak\% of LIME's real queries through. Replications of scaffold attacks
 should match the detector to the explainer's actual sampler, or report how many queries reach the biased model.
 
-\paragraph{Changing the audit settings.} \todo{after the robustness runs: which audit-setting changes, if any, move
-the share kept (Table~\ref{tab:robust}); whether an auditor gains anything from a larger or $k$-means background or
-from LIME's Gaussian sampler; keep the claim to what rule R and the intervals support.}
+\paragraph{Changing the audit settings.}\label{sec:discussion-audit} % CHECK against final Table 7 once the background-200 runs are in
+An auditor who changes the Shapley background after the attacker has trained its detector gains little: with 25 rows,
+200 rows or 100 $k$-means centroids KernelSHAP keeps \RobBackgroundCFrowsKernelSHAPKept, \RobBackgroundCAArowsKernelSHAPKept\
+and \RobkmeansbackgroundKernelSHAPKept\ of the penalty (default \RobMainXGBoostdefaultKernelSHAPKept), because any
+background still produces hybrids of real homes whose ends look real. LIME is different. More samples change nothing
+(\RobLIMEFAAAsamplesLIMEKept), but switching to its Gaussian sampler, whose queries the quartile-trained detector has not
+seen, lets \RobLIMEGaussiansampleLIMELeak\% of LIME's queries reach the biased model, and LIME then shows
+\RobLIMEGaussiansampleLIMEKept\ of the penalty: the one audit setting in which an explainer's class changes (rule R).
+This fits the main result. What protects an explainer is a query distribution the attacker did not anticipate, not
+its treatment of space, and an attacker who expects the auditor to switch samplers can train on both, which we did not
+test.
 
 \paragraph{Looking at outcomes.} The penalty that the scaffold hides from explainers is plainly visible in the
 residuals of the model's own predictions: their local mean separates penalised homes with AUC
 \EsevenAucLagScaffoldTen\ even at a 21\% penalty, using tools --- local means, Moran's $I$, LISA --- that are standard
-in geography. This check needs observed outcomes, loses power for penalties of a few percent, and we have not tested
-it against an attacker who anticipates it. It complements explanation-based audits rather than replacing them, and it
+in geography. Without labels, LISA's low--low clusters point to about \EsevenRecallTen\% of the penalised homes at that
+penalty: enough to send an auditor to the right places, not a list of the affected homes. The check needs observed
+outcomes, loses power for penalties of a few percent, and we have not tested it against an attacker who anticipates
+it. It complements explanation-based audits rather than replacing them, and it
 reflects a broader point: for spatial bias, an audit that looks at what a model does to places can be more robust than
 one that asks the model to explain itself.

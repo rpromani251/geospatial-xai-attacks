@@ -13,9 +13,15 @@
   \item \texttt{summarize\_matched\_attack.py}: seed-level tables;
   \item \texttt{mechanism\_routing.py}: Section~\ref{sec:mechanism};
   \item \texttt{run\_residual\_diagnostic.py}: the outcome check;
+  \item \texttt{fidelity\_by\_group.py}: fidelity on penalised and unpenalised explained homes, from the cached
+        detectors;
   \item \texttt{make\_paper\_tables.py} and \texttt{make\_paper\_figures\_matched.py}: every table, figure and
-        number in this draft.
+        number in this draft;
+  \item \texttt{verify\_paper\_numbers.py}: an independent recomputation of the main numbers and rule outcomes from
+        the raw attribution files and cached detectors, compared with the macros and the compiled PDF.
 \end{itemize}
+Only complete runs enter a table or a rule; a configuration enters the robustness table with at least three complete
+seeds.
 The job lists that were run are in \texttt{docs/paper/data/queues\_run.txt}.
 
 \paragraph{Environment.} Python \VerPython\ on \VerMachine, numpy \VerNumpy, scikit-learn \VerSklearn, XGBoost
@@ -46,5 +52,6 @@ table mixes code versions or machines.
   \item \textbf{Draft v0 (synthetic stand-in for the trigger, one seed).} Its KernelSHAP and GeoShapley figures
         (trigger in the top three for 13\% and 16\% of homes under the matched scaffold) came from a synthetic trigger
         column and a single seed; on the real column the matched scaffold leaves the trigger in the top three for
-        \FKernelSHAPMatTop\% and \FGeoShapleyMatTop\% of homes (Table~\ref{tab:main_feature}).
+        \FKernelSHAPMatTop\% and \FGeoShapleyMatTop\% of all explained homes and \FKernelSHAPMatTopPen\% and
+        \FGeoShapleyMatTopPen\% of the penalised ones (Table~\ref{tab:main_feature}).
 \end{itemize}
