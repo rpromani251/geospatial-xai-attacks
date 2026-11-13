@@ -15,6 +15,29 @@ The paper draft (`docs/paper/fooling_geoxai_draft_v1.tex`, Appendix D) states th
 | 16 October attack-settings table: "SHAP-matched" detector reaches high hiding | **Superseded.** High hiding came from routing only 7.5% of real homes to the biased model. The new threshold rule fixes fidelity ≥ 90% on held-out calibration homes before hiding is measured. | No fidelity constraint | 16 Oct summary |
 | Draft v0: trigger in the top three for 13% (KernelSHAP) and 16% (GeoShapley) of homes under the matched scaffold | **Superseded.** Synthetic stand-in for the trigger column, one seed. The real column and five seeds give the numbers in Table 2 of draft v1. | Synthetic trigger, one seed | `docs/paper/draft_v0_manuscript.md` |
 
+### Changes after the independent review (same day)
+
+- **Top three and fidelity split by penalised homes.** "Trigger in top 3" was computed over all 200 explained homes.
+  On penalised homes the trigger stays in the top three for ~100% of homes under the matched Shapley scaffolds; the
+  fall to about half came from unpenalised homes. Fidelity on penalised homes (the bias actually delivered) is now
+  reported beside fidelity on all homes (`scripts/fidelity_by_group.py`, from the cached detectors). Text that said
+  the trigger "drops out of the top three for about half of the homes" or "about half of the penalised homes" was
+  wrong and is rewritten.
+- **C2 wording.** The feature-design outcome is "GeoShapley slightly harder to fool" (+0.05, interval +0.02 to
+  +0.08); "GeoShapley is no harder to fool" is withdrawn from the abstract, introduction, results, discussion and
+  conclusion. Prose now takes the clause from the rule macro.
+- **Incomplete runs excluded.** Tables and rules read only runs whose JSON says `complete`; a robustness configuration
+  needs at least three complete seeds. A partial neural-net run had entered the robustness table with n = 1.
+- **Location design at 50% fidelity**: the net share is below zero (intervals exclude 0), not "about zero".
+- **Rule M** is presented as a check of the size decomposition (it evaluates the same Shapley average); the routing
+  average is the descriptive approximation.
+- **Outcome check**: "finds the penalised homes" replaced by the AUC (which uses labels) and the label-free LISA
+  recall; the E7 threshold is met narrowly.
+- **Generic detector against the matched curve** is tested paired by seed; "on the same curve" now holds only in the
+  feature design.
+- **`verify_paper_numbers.py`** extended to rule outcomes, C2/C3, mechanism, robustness, E7 and fidelity recomputed
+  from the detectors, and checks the compiled PDF.
+
 ### Method changes (all seeds recomputed from scratch with the final code)
 
 - **KernelSHAP `l1_reg=False`.** shap's default `l1_reg="num_features(10)"` keeps at most ten features per home even
