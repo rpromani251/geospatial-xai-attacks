@@ -172,9 +172,9 @@ and threshold; crosses are the plain average of the routing rates.}
 feature-design attack with random forests (honest $R^2$ \HonestRtwoForest) and neural networks (\HonestRtwoNet) in
 place of XGBoost, and against auditors who change the explainer's settings after the attacker has trained its
 detector. In \RobHold\ of \RobCells\ explainer--configuration cells the C1$'$ class is the same as in the main result
-(rule R); exceptions: \RobBreakList. % CHECK against final Table 7 (rf, mlp, bg200 pending at writing)
+(rule R); exceptions: \RobBreakList.
 With random forests the matched scaffold leaves LIME \RobRandomforestLIMEKept\ of the penalty and KernelSHAP and
-GeoShapley \RobRandomforestKernelSHAPKept\ and \RobRandomforestGeoShapleyKept\ (\RobRandomforestKernelSHAPN\ seeds);
+GeoShapley \RobRandomforestKernelSHAPKept\ and \RobRandomforestGeoShapleyKept\;
 with neural networks \RobNeuralnetLIMEKept, \RobNeuralnetKernelSHAPKept\ and \RobNeuralnetGeoShapleyKept. The model
 family barely matters, for a structural reason. The explainers' queries do not depend on the model, so the detector,
 its threshold and its routing are the same for every family (seed by seed, the fidelities and the queries reaching $f$
