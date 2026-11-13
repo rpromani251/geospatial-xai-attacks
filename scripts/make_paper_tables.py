@@ -628,6 +628,10 @@ def main():
             km, kh, n = ci(x.penalty_share_kept)
             lm, lh, _ = ci(x.leak)
             gm, gh, _ = ci(g.leak)
+            lv = {"1.0": "High", "0.5": "Mid", "0.0": "Low"}[lam]
+            macro_ci(f"Auto{lv}{ENAME[e]}Leak", lm, lh, pct=True)
+            macro_ci(f"Auto{lv}{ENAME[e]}Kept", km, kh)
+            macro(f"Auto{lv}Moran", mi, d=2)
             rows.append([f"{mi:.2f}" if e == "lime" else "", ENAME[e], f(gm, gh, pct=True), f(lm, lh, pct=True),
                          f(km, kh), str(n)])
         rows.append("MID")

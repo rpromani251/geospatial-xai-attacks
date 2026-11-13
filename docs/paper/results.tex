@@ -191,8 +191,21 @@ the penalty.
 \figinput{F8_robustness}{0.85}{Penalty share kept under the matched scaffold across model families and audit
 settings the attacker did not train for (feature design). Mean and 95\% interval over seeds.}
 
-\paragraph{Spatial autocorrelation of the trigger.} \todo{C5 result from Table~\ref{tab:autocorr} and
-Figure~\ref{fig:F6_autocorrelation}: slope of the matched leak on Moran's $I$ (\RuleCfiveFeature).}
+\paragraph{Spatial autocorrelation of the trigger (rule C5).} Breaking up the spatial structure of the trigger makes
+the scaffold worse at hiding, not better. As Moran's $I$ of the trigger falls from \AutoHighMoran\ to
+\AutoMidMoran\ and \AutoLowMoran, the share of KernelSHAP's queries that reach $f$ goes from \AutoHighKernelSHAPLeak\%
+to \AutoMidKernelSHAPLeak\% and \AutoLowKernelSHAPLeak\%, and its share kept from \AutoHighKernelSHAPKept\ to
+\AutoMidKernelSHAPKept\ and \AutoLowKernelSHAPKept; GeoShapley moves the same way (\AutoHighGeoShapleyKept\ to
+\AutoLowGeoShapleyKept; Table~\ref{tab:autocorr}, Figure~\ref{fig:F6_autocorrelation}). Most of the change comes
+between the observed and the intermediate level. The slope of the matched leak on Moran's $I$ is
+\SlopeMoranKernelSHAP\ (interval \SlopeMoranKernelSHAPLo\ to \SlopeMoranKernelSHAPHi) for KernelSHAP and
+\SlopeMoranGeoShapley\ (\SlopeMoranGeoShapleyLo\ to \SlopeMoranGeoShapleyHi) for GeoShapley: by rule C5,
+KernelSHAP, \RuleCfiveFeatureKernelSHAP; GeoShapley, \RuleCfiveFeatureGeoShapley; LIME, whose queries are rejected at
+every level, \RuleCfiveFeatureLIME. A reading consistent with this: a strongly autocorrelated trigger is predictable
+from location, so a hybrid that pairs one home's tract share with another home's coordinates is internally
+inconsistent and the detector can reject it; when the trigger is spatially random, such hybrids look like real homes
+and reach $f$. Spatial segregation of the protected attribute thus works for the attacker: the more clustered it is,
+the more a scaffold can hide from a Shapley explainer at the same fidelity.
 \tabinput{tab_autocorr}
 \figinput{F6_autocorrelation}{0.66}{Queries reaching $f$ under the matched scaffold as the trigger's spatial
 autocorrelation is lowered. Mean and 95\% interval over seeds.}

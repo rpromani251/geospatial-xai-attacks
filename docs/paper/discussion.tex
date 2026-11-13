@@ -15,6 +15,13 @@ valuable for interpretation; as a defence it helps only as far as it moves the e
 and here that is a few points of the penalty. The question to ask of any explainer used in an audit is the one the
 routing curves answer: what share of its queries looks like real data?
 
+\paragraph{Where geography does enter: segregation helps the attacker.} Space matters to the attack through the data,
+not through the explainer. The more clustered the protected attribute, the more a scaffold hides from a Shapley
+explainer at the same fidelity (rule C5). In a segregated city a tract's demographic share is close to a function of
+location, so hybrids that break that relation are easy to spot and route away; when the attribute is spatially random
+they look like real homes. Within the range we tested, this suggests that Shapley-based audits are weakest where
+spatial bias is most likely: in highly segregated places.
+
 \paragraph{What partial hiding means for an audit.} ``Partly fooled'' is not ``safe''; nor does it mean the
 penalty has left the explanations. Against the matched scaffold KernelSHAP and GeoShapley keep between about half and three quarters of the
 penalty, and on the penalised homes themselves the trigger stays among the three largest attributions. An auditor who
