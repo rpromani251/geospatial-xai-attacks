@@ -46,8 +46,11 @@ outcomes agrees with the PDF.
 4. Cook County: in this paper or a follow-up?
 5. The outcome-check section: keep it, given that it clears its bar narrowly?
 
-**In progress:** a test of a geographically local Shapley background, which the floor predicts should be harder to
-fool.
+**A geographically local audit.** We drew each home's Shapley background from its 100 nearest neighbours, which
+the floor predicts should be harder to fool. It is, even when the attacker retrains: the share kept rises by about a
+tenth. But a local comparison sees less of a neighbourhood-wide penalty to begin with, so it shows less of the
+penalty in absolute terms under attack than the default does. This is Section 5.6, and it is the main reason the
+title says "no defence".
 
 **Not in this draft:** five more seeds for the main tables, stronger attacker variants, and Cook County.
 
