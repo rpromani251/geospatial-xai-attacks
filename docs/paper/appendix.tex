@@ -64,3 +64,35 @@ table mixes code versions or machines.
         \FKernelSHAPMatTop\% and \FGeoShapleyMatTop\% of all explained homes and \FKernelSHAPMatTopPen\% and
         \FGeoShapleyMatTopPen\% of the penalised ones (Table~\ref{tab:main_feature}).
 \end{itemize}
+
+\section{Proofs}\label{app:proofs}
+\paragraph{Proposition~\ref{prop:split}.} Fix a penalised explained home $x$, a background row $b$ and a coalition
+$S \not\ni j$. Write $z_S = (x_S, b_{-S})$, $r_S = \1\{d(z_S) \ge \tau\}$ and $\beta = \1\{T(b) > 0.25\}$. The served
+model is $e = r f + (1-r)\psi$ with $f = h - \delta\,\1\{T > 0.25\}$. In the feature design $T$ is the trigger column,
+and $h$ and $\psi$ do not read it, so $h(z_{S\cup j}) = h(z_S)$ and $\psi(z_{S\cup j}) = \psi(z_S)$; the hybrid
+$z_{S\cup j}$ carries $x$'s trigger and is penalised, while $z_S$ carries $b$'s and is penalised exactly when
+$\beta = 1$. Hence
+\[
+  e(z_{S\cup j}) - e(z_S) = r_{S\cup j}(h - \delta) + (1-r_{S\cup j})\psi - r_S(h - \delta\beta) - (1-r_S)\psi
+  = -\delta(r_{S\cup j} - r_S\beta) + (r_{S\cup j} - r_S)(h - \psi),
+\]
+with $h$ and $\psi$ evaluated at $z_S$. With $r \equiv 1$ (the biased model served directly) the difference is
+$-\delta(1-\beta)$. The trigger's Shapley value is the average of these differences with weight $1/M$ per size and
+uniform weight over coalitions of a size and background rows \eqref{eq:sizes}; the share kept $K$ averages it over
+penalised homes and divides by the same average for the biased model, $-\delta(1-p_B)$. Because $\beta$ depends only on
+$b$, $\mathbb{E}[r_S\beta] = p_B\,\mathbb{E}[r_S \mid \beta = 1] = p_B\,\rho_{B,k}$ at every size $k$. Linearity gives
+$K = K_{\mathrm{pen}} + K_\times$. Corollary~\ref{cor:penalty}: the matched detector is trained on the explainer's
+queries, which do not involve the model, and its thresholds are set on real homes, so $r$ does not depend on $\delta$;
+neither do $h$ and $\psi$. $K_{\mathrm{pen}}$ is therefore free of $\delta$ and $K_\times$ is proportional to $1/\delta$.
+\hfill$\square$
+
+\paragraph{Proposition~\ref{prop:floor}.} For any measurable $A$ and laws $P, Q$, $|P(A) - Q(A)| \le \mathrm{TV}(P,Q)$,
+which gives $\rho_k = Q_k(A) \ge P^+(A) - \mathrm{TV}(P^+, Q_k)$. For the second inequality write $C = S \cup j$.
+The hybrid $z_S$ with the trigger added is $(x_C, b_{-C})$ with $x \sim P^+$ and $b \sim P$ independent, so its law is
+$Q_S = P^+_C \otimes P_{-C}$, and $Q_k$ averages $Q_S$ over coalitions of size $k$. Total variation is convex, so
+$\mathrm{TV}(P^+, Q_k) \le \mathbb{E}_{|S|=k}\mathrm{TV}(P^+, Q_S)$. Disintegrate $P^+ = P^+_C \otimes P^+_{-C\mid C}$.
+The event $\{T > 0.25\}$ is determined by $x_C$ because $j \in C$, so $P^+_{-C\mid x_C} = P_{-C\mid x_C}$. Two laws with
+the same first marginal $\mu$ and conditionals $K_1, K_2$ satisfy $\mathrm{TV}(\mu\otimes K_1, \mu\otimes K_2) =
+\int \mathrm{TV}(K_1(\cdot\mid u), K_2(\cdot\mid u))\,\mu(du)$. With $K_1 = P_{-C\mid x_C}$ and $K_2 \equiv P_{-C}$
+this is the inner expectation in $D_k$. For the density form: if $dQ/dP^+ \le \kappa$ then $Q(A^c) \le
+\kappa P^+(A^c) \le \kappa(1-\phi^+)$. \hfill$\square$

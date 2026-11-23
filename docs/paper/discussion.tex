@@ -12,15 +12,25 @@ to detect, more of its hybrids reach the biased model at every coalition size (F
 rule C2 in the feature design \FCtwoClause, while in the location design we find \LCtwoClause. Its other players are
 still recombined across homes, so its middle coalitions are still largely routed away. Treating location carefully is
 valuable for interpretation; as a defence it helps only as far as it moves the explainer's queries towards real data,
-and here that is a few points of the penalty. The question to ask of any explainer used in an audit is the one the
-routing curves answer: what share of its queries looks like real data?
+and here that is a few points of the penalty. Proposition~\ref{prop:floor} names the quantity behind all of this: the dependence between features that an
+explainer's query construction breaks. The question to ask of any explainer used in an audit is the one the routing
+curves answer: what share of its queries looks like real data?
 
 \paragraph{Where geography does enter: segregation helps the attacker.} Space matters to the attack through the data,
 not through the explainer. The more clustered the protected attribute, the more a scaffold hides from a Shapley
 explainer at the same fidelity (rule C5). In a segregated city a tract's demographic share is close to a function of
 location, so hybrids that break that relation are easy to spot and route away; when the attribute is spatially random
-they look like real homes. Within the range we tested, this suggests that Shapley-based audits are weakest where
+they look like real homes. In Proposition~\ref{prop:floor} this is $D_0$, the information the protected attribute
+carries about location, and it lowers the floor. Within the range we tested, this suggests that Shapley-based audits are weakest where
 spatial bias is most likely: in highly segregated places.
+
+\paragraph{Local comparisons trade one blind spot for another.} The obvious geographic fix is to compare each home
+with its neighbours. Proposition~\ref{prop:floor} predicts that this resists the scaffold, and it does: the share kept
+rises by about a tenth even when the attacker retrains. But redlining is a neighbourhood-wide penalty, and a local
+comparison is blind to what neighbours share. The penalty a local explanation shows under attack is smaller in
+absolute terms than the default explanation shows. A geography-aware audit therefore has to compare places with places,
+not only homes with neighbours. Outcome checks that look across areas, such as the residual test below, do that
+directly.
 
 \paragraph{What partial hiding means for an audit.} ``Partly fooled'' is not ``safe''; nor does it mean the
 penalty has left the explanations. Against the matched scaffold KernelSHAP and GeoShapley keep between about half and three quarters of the

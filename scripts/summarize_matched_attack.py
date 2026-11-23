@@ -115,6 +115,7 @@ def main():
     ap.add_argument("--shuffle", type=float, default=1.0)
     ap.add_argument("--model", default="xgb")
     ap.add_argument("--audit", default="match", help="audit-settings label, e.g. bg25, bg100kmeans, lime5000")
+    ap.add_argument("--attacker-bg-kind", default="sample", help="background the attacker harvested with")
     a = ap.parse_args()
     excl = {int(s) for s in a.exclude_seeds.split(",") if s}
     runs, skipped = [], []
@@ -122,7 +123,8 @@ def main():
         d = json.load(open(p))
         if (d["seed"] in excl or d.get("penalty", 0.3) != a.penalty or d.get("attacker", "rf") != a.attacker
                 or d.get("harvest_scale", 1) != a.harvest_scale or d.get("shuffle", 1.0) != a.shuffle
-                or d.get("model", "xgb") != a.model or d.get("audit", "match") != a.audit):
+                or d.get("model", "xgb") != a.model or d.get("audit", "match") != a.audit
+                or d.get("attacker_bg_kind", "sample") != a.attacker_bg_kind):
             continue
         if not d.get("complete"):          # a budget-limited call writes its JSON before every cell is in
             skipped.append(d["tag"])
@@ -185,7 +187,8 @@ def main():
                 rows.append(r)
     sfx = a.design + ("" if a.penalty == 0.30 else f"_pen{a.penalty:g}") + ("" if a.attacker == "rf" else f"_att-{a.attacker}") \
         + ("" if a.harvest_scale == 1 else f"_hs{a.harvest_scale}") + ("" if a.shuffle == 1.0 else f"_lam{a.shuffle:g}") \
-        + ("" if a.model == "xgb" else f"_m-{a.model}") + ("" if a.audit == "match" else f"_aud-{a.audit}")
+        + ("" if a.model == "xgb" else f"_m-{a.model}") + ("" if a.attacker_bg_kind == "sample" else f"_abg-{a.attacker_bg_kind}") \
+        + ("" if a.audit == "match" else f"_aud-{a.audit}")
     df = pd.DataFrame(rows)
     if df.empty:
         print("no cells yet")

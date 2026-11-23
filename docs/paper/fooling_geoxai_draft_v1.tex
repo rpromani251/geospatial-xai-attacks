@@ -1,7 +1,10 @@
 \documentclass[11pt]{article}
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath,amssymb,booktabs,enumitem,microtype,graphicx,xcolor,adjustbox,makecell}
+\usepackage{amsthm}
 \usepackage[hidelinks]{hyperref}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
 \usepackage[round]{natbib}
 \setlist{itemsep=2pt,topsep=4pt}
 \newcommand{\pct}{\texttt{pct\_black\_latino}}
@@ -13,7 +16,7 @@
 \newcommand{\tabinput}[1]{\IfFileExists{tables/#1.tex}{\input{tables/#1}}{\todo{table \detokenize{#1} not generated yet}}}
 \newcommand{\figinput}[3]{\IfFileExists{figures/#1.pdf}{\begin{figure}[t]\centering\includegraphics[width=#2\linewidth]{figures/#1}\caption{#3}\label{fig:#1}\end{figure}}{\todo{figure \detokenize{#1} not generated yet}}}
 
-\title{The estimator, not the geography:\\ scaffold attacks hide a racial price penalty from LIME, KernelSHAP and GeoShapley\\[6pt]
+\title{Geographic awareness is no defence:\\ scaffold attacks hide a racial price penalty from LIME, KernelSHAP and GeoShapley\\[6pt]
 \large Draft v1 for discussion with Peng Luo}
 \author{Robert Romani}
 \date{\today\ --- every number in this draft is generated from the result files; see Appendix C}
@@ -52,7 +55,8 @@ set by the explainer's estimator --- where it queries the model --- and not by w
 geography.} LIME samples far from real homes and can be fooled almost for free. KernelSHAP and GeoShapley satisfy
 efficiency and evaluate the explained home itself, together with many near-real hybrids, so the attacker can hide
 the penalty from them only by also withholding it from real homes. We measure that stealth--fidelity trade-off and
-explain it with an argument about Shapley coalitions that accounts for the measured trade-off.
+explain it with two propositions about Shapley coalitions: an exact split of what an explanation keeps, and a floor,
+valid for any detector, set by the dependence between features that an explainer's queries break.
 
 We ask five questions.
 \begin{enumerate}
@@ -75,7 +79,10 @@ importance ranking, but cannot take it out of those homes' explanations. Treatin
 GeoShapley little: in the feature design \FCtwoClause, in the location design \LCtwoClause, and under attack its
 location effect shrinks while its feature-by-location interactions roughly double. The share a Shapley explainer keeps
 is close to the average, over coalition sizes, of the share of its hybrids that the detector routes to the biased
-model. These results hold with random forests and neural networks and when the auditor changes the Shapley
+model; the exact split predicts the share kept at a smaller penalty to within \SplitPredTenMax, and the floor explains
+why segregation helps the attacker. A local Shapley background, which the floor predicts should resist the attack,
+does, even against an attacker who retrains on it; but because neighbours share a clustered penalty, it shows less of
+the penalty to begin with. These results hold with random forests and neural networks and when the auditor changes the Shapley
 background; only an auditor who switches LIME to a sampler the attacker did not anticipate recovers part of the
 penalty. Finally, a residual check that uses no
 explainer separates the penalised homes from the rest.
@@ -221,9 +228,9 @@ what the attack has to hide. $K = 1$ means the penalty is fully visible, $K = 0$
 Every detector score of every query is histogrammed, so AUC and the leak at any fidelity are computed exactly
 without re-running an explainer.
 
-\subsection{Why Shapley explainers resist: efficiency and coalition sizes}\label{sec:mechanism}
-For a Shapley explainer with background $B$ the attributions of a home sum to the served prediction there minus its
-background mean (efficiency):
+\subsection{A theory of the trade-off}\label{sec:mechanism}
+\paragraph{Efficiency and coalition sizes.} For a Shapley explainer with background $B$ the attributions of a home
+sum to the served prediction there minus its background mean (efficiency):
 \begin{equation}
   \sum_{j=1}^{M}\phi_j(x) = e(x) - \frac{1}{|B|}\sum_{b\in B} e(b).
 \end{equation}
@@ -231,20 +238,90 @@ While the scaffold keeps fidelity, the explained home itself is routed to $f$ an
 cannot vanish from the explanation; it can only move to other features, or the attacker must stop serving $f$ at $x$.
 LIME has no such constraint. The trigger's attribution is an average over coalition sizes with equal weight $1/M$,
 \begin{equation}
-  \phi_j(x) = \frac{1}{M}\sum_{k=0}^{M-1}\mathbb{E}_{|S|=k,\; j\notin S,\; b\sim B}\bigl[e(x_{S\cup j}, b) - e(x_S, b)\bigr],
+  \phi_j(x) = \frac{1}{M}\sum_{k=0}^{M-1}\mathbb{E}_{|S|=k,\; j\notin S,\; b\sim B}\bigl[e(z_{S\cup j}) - e(z_S)\bigr],
+  \qquad z_S = (x_S, b_{-S}),
   \label{eq:sizes}
 \end{equation}
-where $(x_S, b)$ takes the players in $S$ from $x$ and the rest from $b$. The largest coalition is the explained
-home; near-complete coalitions differ from it in one or two players, and near-empty ones are a background (real)
-home with one or two values swapped in. Both ends look real to a detector. If $\rho_k$ is the share of size-$k$
-hybrids routed to $f$, the share of the penalty kept is roughly the average of $\rho_k$ over sizes, and the attacker
-can lower it only by rejecting near-real points, which also rejects real homes. We estimate each term of
-\eqref{eq:sizes} by Monte Carlo with the attack's own detector, background and thresholds (200 hybrids per home and
-size, drawn independently of the attack run) and compare the result with the measured $K$ (rule M below). Because this
-evaluates the same Shapley average with the same detector, agreement confirms the size decomposition and our
-implementation rather than testing a separate hypothesis. The substantive approximation is the plain average over
-sizes of $\rho_k$, which ignores how the penalty is spread across sizes; we report it as a description that was not
-specified in advance.
+where the hybrid $z_S$ takes the players in $S$ from $x$ and the rest from $b$. The largest coalition is the explained
+home; near-complete coalitions differ from it in one or two players, and near-empty ones are a background (real) home
+with one or two values swapped in. Both ends look real to a detector. Two results make this precise. The first splits
+the share kept exactly; the second bounds the routing from below for any detector.
+
+\paragraph{An exact split (feature design).} Write $r_S = \1\{d(z_S) \ge \tau\}$ for the routing of hybrid $z_S$ and
+$\beta = \1\{T(b) > 0.25\}$ for a penalised background home. Neither $h$ nor $\psi$ uses the trigger, and the explained
+home is penalised, so for every coalition and background row
+\begin{equation}
+  e(z_{S\cup j}) - e(z_S) = -\delta\,\bigl(r_{S\cup j} - r_S\,\beta\bigr) + \bigl(r_{S\cup j} - r_S\bigr)\,(h - \psi)(z_S),
+  \label{eq:layer}
+\end{equation}
+against $-\delta(1-\beta)$ for the biased model served directly.
+
+\begin{proposition}[Split]\label{prop:split} Let $p_B$ be the share of penalised background rows,
+$\rho_k = \mathbb{E}[r_{S\cup j}]$ the routing rate of size-$k$ hybrids that carry the trigger, and $\rho_{B,k} =
+\mathbb{E}[r_S \mid \beta = 1]$ that of hybrids built on penalised background rows, with expectations over penalised
+explained homes, background rows and coalitions of size $k$. Then the penalty share kept is $K = K_{\mathrm{pen}} +
+K_\times$, with
+\begin{equation}
+  K_{\mathrm{pen}} = \frac{\bar\rho - p_B\,\bar\rho_B}{1 - p_B}, \qquad
+  K_\times = -\frac{1}{\delta(1-p_B)}\,\frac{1}{M}\sum_{k}\mathbb{E}\bigl[(r_{S\cup j} - r_S)(h-\psi)(z_S)\bigr],
+\end{equation}
+where bars denote averages over coalition sizes.
+\end{proposition}
+\noindent The proof averages \eqref{eq:layer} (Appendix~\ref{app:proofs}). The penalty
+term is the routing average corrected for penalised background rows. This is why the plain average of $\rho_k$
+tracks the share kept. The cross term comes from hybrids whose routing flips when the trigger is swapped in, and it
+scales as $1/\delta$. The explainer's queries do not involve the model, so the detector, its thresholds and every
+routing rate are the same at every $\delta$.
+
+\begin{corollary}[Penalty size]\label{cor:penalty} $K(\delta') = K_{\mathrm{pen}} + (\delta/\delta')\,K_\times(\delta)$.
+\end{corollary}
+\noindent The split measured at $\delta = 0.30$ therefore predicts the share kept at $\delta = 0.10$, which separate attack
+runs measure.
+
+\paragraph{A floor for any detector.} Let $A = \{x : d(x) \ge \tau\}$ be the detector's accept set, $P^+$ the law of
+penalised homes, $\phi^+ = P^+(A)$ the fidelity on them, and $Q_k$ the law of the size-$k$ hybrids that carry the
+trigger.
+
+\begin{proposition}[Routing floor]\label{prop:floor} For every detector,
+\begin{equation}
+  \rho_k = Q_k(A) \;\ge\; \phi^+ - \mathrm{TV}(P^+, Q_k) \;\ge\; \phi^+ - D_k, \qquad
+  D_k = \mathbb{E}_{|S|=k}\,\mathbb{E}_{x\sim P^+}\,\mathrm{TV}\bigl(P_{-(S\cup j)\mid x_{S\cup j}},\; P_{-(S\cup j)}\bigr),
+  \label{eq:floor}
+\end{equation}
+where $P_{-(S\cup j)\mid x_{S\cup j}}$ is the law, among real homes, of the features outside the coalition given
+those inside, and $P_{-(S\cup j)}$ is their law in the background.
+\end{proposition}
+\noindent The first inequality is $|P(A) - Q(A)| \le
+\mathrm{TV}(P, Q)$. The second holds because a coalition hybrid draws the two blocks of features independently while
+real homes do not (Appendix~\ref{app:proofs}).
+
+$D_k$ measures the dependence between coalition and complement that the explainer's construction breaks. At $k = M-1$
+nothing is broken and $\rho_{M-1} \ge \phi^+$: the explained home itself. At $k = 0$, $D_0$ is how much the trigger
+reveals about every other feature, location included. With $\bar\rho_B \le 1$, Proposition~1 turns the floor into
+$K_{\mathrm{pen}} \ge (\phi^+ - \bar D - p_B)/(1 - p_B)$. No detector, however strong, can hide more of the penalty term
+without lowering $\phi^+$. The same argument with a density bound gives a second form. If an auditor's queries have
+density at most $\kappa$ relative to $P^+$, then $\rho \ge 1 - \kappa(1-\phi^+)$.
+
+The floor is not a number we can certify, because $D_k$ is a total-variation distance in eleven dimensions. Its
+value is in what it orders. It predicts four things, each checked in Section~\ref{sec:results}:
+\begin{enumerate}[label=(\roman*),leftmargin=*]
+  \item \emph{LIME} draws each feature independently from its quartile bins. Its queries are far from real homes in
+        total variation, so nothing stops a detector from rejecting all of them.
+  \item \emph{GeoShapley} never separates the two coordinates, so its $D_k$ omits their dependence; KernelSHAP's
+        includes it. Size for size it breaks less dependence, and its floor should be higher. This is a tendency,
+        not an ordering we prove: the two have different numbers of players.
+  \item \emph{Segregation.} The more the protected attribute depends on location, the larger $D_0$ and the
+        near-empty $D_k$, and the lower the floor.
+  \item \emph{Local backgrounds.} Drawing an explained home's background from its neighbours brings the background law
+        close to the conditional law for coalitions that contain location. That shrinks $D_k$ and raises the floor,
+        even for an attacker who retrains on such queries. In the limit of conditional (``on-manifold'') Shapley
+        values \citeneeded{Frye et al. 2021; Aas et al. 2021} $D_k = 0$, and the attacker can hide the penalty only by
+        withholding it.
+\end{enumerate}
+We estimate each term of \eqref{eq:sizes} and \eqref{eq:layer} by Monte Carlo with the attack's own detector,
+background and thresholds (200 hybrids per home and size, drawn independently of the attack run) and compare with the
+measured $K$ (rule M below). That comparison checks the decomposition and our implementation; the out-of-sample test
+is Corollary~\ref{cor:penalty}.
 
 \subsection{Robustness}
 \begin{itemize}
@@ -256,6 +333,9 @@ specified in advance.
   \item \textbf{Spatial autocorrelation}: a share of homes receives the trigger value of a random other home, which
         keeps the marginal distribution and lowers Moran's $I$.
   \item \textbf{Smaller penalty}: $\delta = 0.10$ (a 21\% price cut).
+  \item \textbf{Local background} (added after the pre-specified runs, to test Proposition~\ref{prop:floor}): each
+        explained home's Shapley background is its 100 nearest training homes, with the default detector and with a
+        detector the attacker retrains on local-background queries.
 \end{itemize}
 
 \subsection{An outcome-based check}
@@ -289,7 +369,7 @@ contrasts are paired by seed. The rules below were fixed before the runs.
 \end{itemize}
 
 % =====================================================================================
-\section{Results}
+\section{Results}\label{sec:results}
 \input{results}
 
 % =====================================================================================
@@ -304,6 +384,8 @@ contrasts are paired by seed. The rules below were fixed before the runs.
   \item The adversary is static: defences and attackers that adapt to them are out of scope. We also did not vary the
         attacker's detector (its model class or the number of harvested queries). A stronger detector could lower the
         share kept at a given fidelity, so our shares describe one reasonable attacker, not the strongest possible.
+  \item The local-background test uses one neighbourhood size (100 homes) and was added after the pre-specified runs,
+        motivated by Proposition~\ref{prop:floor}.
   \item The auditor's Shapley background is drawn from the training homes, which the matched detector saw as real
         during training; near-empty coalitions may look real partly because the detector has memorised those rows.
         A $k$-means background, whose rows no real home matches exactly, changes the share kept little

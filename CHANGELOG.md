@@ -3,6 +3,22 @@
 Corrections and method changes that affect numbers quoted in earlier project documents. Newest first.
 The paper draft (`docs/paper/fooling_geoxai_draft_v1.tex`, Appendix D) states the same corrections.
 
+## 2026-11-22 — theory section and local-background test
+
+- **Title**: "Geographic awareness is no defence: scaffold attacks hide a racial price penalty from LIME, KernelSHAP
+  and GeoShapley" (was "The estimator, not the geography: ...").
+- **Two propositions** (Section 4.6, proofs in Appendix E): an exact split of the share kept into a penalty term and a
+  cross term (feature design), with the corollary that the split at one penalty predicts the share kept at another;
+  and a routing floor, valid for any detector, set by the dependence between features that an explainer's coalition
+  hybrids break.
+- `mechanism_routing.py` now writes the split terms (`kept_penalty_term`, `kept_cross_term`, `rho_with_avg`,
+  `rho_bgpen_avg`, `p_bg_penalised`) and asserts that they add up to each layer; `make_paper_tables.py` writes
+  `tab_split.tex` with the prediction at delta = 0.10 against the separate delta = 0.10 runs.
+- **New option** `--audit-bg-kind local` (each explained home's Shapley background = its 100 nearest training homes)
+  and `--attacker-bg-kind local` (the attacker harvests its detector's training queries the same way). Not
+  pre-specified; motivated by the floor. Reported in `tab_local.tex`, outside rule R.
+- `verify_paper_numbers.py` also checks the split identity and the delta = 0.10 prediction.
+
 ## 2026-11-12 — matched-scaffold experiment and paper draft v1
 
 ### Corrected claims

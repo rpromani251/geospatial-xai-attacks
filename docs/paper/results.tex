@@ -161,11 +161,48 @@ average of the routing rates over sizes, which ignores how the penalty is spread
 \emph{the share of the penalty a Shapley explainer keeps is the average, over coalition sizes, of the share of its
 hybrids the detector routes to the biased model}.
 
+\paragraph{The split, and a prediction for a smaller penalty.} Proposition~\ref{prop:split} splits KernelSHAP's share
+kept at the 90\% threshold into a penalty term of \SplitKernelSHAPNinetyPen\ and a cross term of
+\SplitKernelSHAPNinetyCross; for GeoShapley the two are \SplitGeoShapleyNinetyPen\ and \SplitGeoShapleyNinetyCross\
+(Table~\ref{tab:split}). The penalty term is the routing average (\SplitKernelSHAPNinetyRhoWith) corrected for the
+\SplitPBg\ of background rows that are themselves penalised, whose hybrids are routed to $f$ more often
+(\SplitKernelSHAPNinetyRhoBg). By Corollary~\ref{cor:penalty} the split measured at $\delta = 0.30$ predicts the share
+kept at $\delta = 0.10$: \SplitKernelSHAPNinetyPredTen\ for KernelSHAP and \SplitGeoShapleyNinetyPredTen\ for
+GeoShapley, against \SplitKernelSHAPNinetyMeasTen\ and \SplitGeoShapleyNinetyMeasTen\ measured in the separate
+$\delta = 0.10$ runs. Across both explainers, all three thresholds and five seeds, the mean absolute error is
+\SplitPredTenMAE\ (largest \SplitPredTenMax). This is the out-of-sample test of the mechanism that rule M is not.
+
+\tabinput{tab_split}
+
 \figinput{F7_mechanism}{0.92}{Mechanism. Left: share of with-trigger hybrids routed to $f$ by coalition size, at the
 three attacker thresholds (feature design). Right: predicted against measured penalty share kept, one point per seed
 and threshold; crosses are the plain average of the routing rates.}
 
 \tabinput{tab_mechanism}
+
+\subsection{A geographically local audit: harder to fool, but blinder}
+Proposition~\ref{prop:floor} predicts that an explainer whose queries keep the dependence between location and the
+protected attribute is harder to fool. We tested one such design, which was not specified in advance: each explained
+home's Shapley background is the 100 training homes nearest to it (Table~\ref{tab:local}). The prediction holds, even
+against an attacker who anticipates it. With the default detector the share kept rises from \FKernelSHAPMatKept\ to
+\LocalFixedKernelSHAPKept\ for KernelSHAP and from \FGeoShapleyMatKept\ to \LocalFixedGeoShapleyKept\ for
+GeoShapley. When the attacker retrains its detector on local-background queries it rises further, to
+\LocalAdaptedKernelSHAPKept\ and \LocalAdaptedGeoShapleyKept\ (paired differences from the default background
+\LocalAdaptedKernelSHAPMinusMain\ and \LocalAdaptedGeoShapleyMinusMain, intervals \LocalAdaptedKernelSHAPMinusMainLo\
+to \LocalAdaptedKernelSHAPMinusMainHi\ and \LocalAdaptedGeoShapleyMinusMainLo\ to \LocalAdaptedGeoShapleyMinusMainHi).
+The retrained detector cannot tell local hybrids from real homes, so \LocalAdaptedKernelSHAPLeak\% and
+\LocalAdaptedGeoShapleyLeak\% of the queries reach $f$.
+
+The protection has a price, and the price is geographic. A local background compares each home with its neighbours.
+In a segregated city most neighbours of a penalised home are penalised too. So even with no scaffold, the local
+explanation shows a penalty of \LocalFixedKernelSHAPBiasedSigned\ in log$_{10}$ price on penalised homes, against
+\FKernelSHAPBiasedSigned\ with the default background. Under the matched scaffold the local explanation shows
+\LocalAdaptedKernelSHAPMatSignedLocalTab, less in absolute terms than the default explanation does under attack
+(\MainKernelSHAPMatSignedLocalTab). The spatial clustering that a local background exploits to resist the attack is
+the same clustering that hides a neighbourhood-wide penalty from a local comparison. Geographic awareness moves the
+loss from the attack to the reference; it does not remove it.
+
+\tabinput{tab_local}
 
 \subsection{Robustness}
 \paragraph{Model families and audit settings.} Table~\ref{tab:robust} and Figure~\ref{fig:F8_robustness} repeat the
@@ -216,7 +253,8 @@ and \PenTenGeoShapleyKept\ at the same fidelity, and \PenTenKernelSHAPFiftyKept\
 50\% fidelity (Table~\ref{tab:penalty010}). The detector and its routing do not depend on $\delta$ (seed by seed the
 fidelities and the queries reaching $f$ are identical to the main run), so the penalty term of the trigger's
 attribution scales with $\delta$. The term $(r_{S\cup j} - r_S)(h - \psi)$ does not, and it is a larger share of a
-smaller penalty. Because a smaller penalty is also a smaller attribution, the trigger is less prominent to begin with:
+smaller penalty; Corollary~\ref{cor:penalty} predicts these shares from the $\delta = 0.30$ runs alone
+(Table~\ref{tab:split}). Because a smaller penalty is also a smaller attribution, the trigger is less prominent to begin with:
 it is in the top three for \PenTenKernelSHAPBiasedTopPen\% of penalised homes without a scaffold (both Shapley
 explainers) and
 \PenTenKernelSHAPTopPen\% (KernelSHAP) and \PenTenGeoShapleyTopPen\% (GeoShapley) under the matched scaffold.

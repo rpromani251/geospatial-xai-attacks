@@ -4,7 +4,8 @@ free, while KernelSHAP and GeoShapley, bound by efficiency and querying many nea
 partly, and only at a cost in the bias actually delivered. Making an explainer spatially explicit matters only through
 where it queries the model: GeoShapley's joint location player keeps its hybrids at real locations and buys it a few
 points of the penalty, not protection. Geography matters through the data instead: the more segregated the protected
-attribute, the more a scaffold can hide. Under attack GeoShapley's location effect shrinks and spurious interactions
+attribute, the more a scaffold can hide, and an explainer that compares a home only with its neighbours resists the
+attack but cannot see a penalty its neighbours share. Under attack GeoShapley's location effect shrinks and spurious interactions
 appear, so its decomposition should not be read as evidence that a model treats places fairly. Audits of spatial
 models should ask where an explainer queries the model, should look at explanations of the affected places and not
 only at global summaries, and should pair explanations with checks on outcomes that a model cannot route around.

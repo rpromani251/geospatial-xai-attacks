@@ -1,0 +1,10 @@
+--design feature --seed 0 --audit-bg-kind local
+--design feature --seed 1 --audit-bg-kind local
+--design feature --seed 2 --audit-bg-kind local
+--design feature --seed 3 --audit-bg-kind local
+--design feature --seed 4 --audit-bg-kind local
+--design feature --seed 0 --attacker-bg-kind local --audit-bg-kind local
+--design feature --seed 1 --attacker-bg-kind local --audit-bg-kind local
+--design feature --seed 2 --attacker-bg-kind local --audit-bg-kind local
+--design feature --seed 3 --attacker-bg-kind local --audit-bg-kind local
+--design feature --seed 4 --attacker-bg-kind local --audit-bg-kind local

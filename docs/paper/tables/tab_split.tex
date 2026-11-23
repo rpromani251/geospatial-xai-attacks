@@ -1,0 +1,22 @@
+\begin{table}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{llrrrrr}
+\toprule
+Explainer & \makecell[b]{Attacker \\ fidelity \\ target} & \makecell[b]{Share kept at \\ $\delta{=}0.30$} & \makecell[b]{Penalty term \\ $K_{\text{pen}}$} & \makecell[b]{Cross term \\ $K_{\times}$} & \makecell[b]{Predicted \\ share kept at \\ $\delta{=}0.10$} & \makecell[b]{Measured at \\ $\delta{=}0.10$} \\
+\midrule
+KernelSHAP & 90\% & 0.67 $\pm$ 0.07 & 0.61 $\pm$ 0.07 & 0.06 $\pm$ 0.03 & 0.80 $\pm$ 0.09 & 0.80 \\
+ & 75\% & 0.47 $\pm$ 0.05 & 0.41 $\pm$ 0.05 & 0.06 $\pm$ 0.02 & 0.59 $\pm$ 0.06 & 0.59 \\
+ & 50\% & 0.24 $\pm$ 0.02 & 0.21 $\pm$ 0.02 & 0.04 $\pm$ 0.01 & 0.32 $\pm$ 0.04 & 0.32 \\
+\midrule
+GeoShapley & 90\% & 0.72 $\pm$ 0.07 & 0.65 $\pm$ 0.07 & 0.07 $\pm$ 0.02 & 0.85 $\pm$ 0.08 & 0.85 \\
+ & 75\% & 0.50 $\pm$ 0.03 & 0.43 $\pm$ 0.04 & 0.07 $\pm$ 0.01 & 0.63 $\pm$ 0.04 & 0.63 \\
+ & 50\% & 0.29 $\pm$ 0.03 & 0.24 $\pm$ 0.03 & 0.05 $\pm$ 0.01 & 0.38 $\pm$ 0.03 & 0.39 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\caption{The exact split of Proposition~\ref{prop:split} (feature design, matched scaffold), measured at $\delta = 0.30$ with the attack's detector and the auditor's background, and the share kept it predicts at $\delta = 0.10$ ($K_{\text{pen}} + 3K_{\times}$), against the separate $\delta = 0.10$ attack runs. Mean $\pm$ 95\% interval over seeds.}
+\label{tab:split}
+\end{table}

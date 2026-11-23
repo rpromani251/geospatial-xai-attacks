@@ -100,6 +100,18 @@ Jobs queued for draft v1 (scripts/run_matched_attack.py arguments), with status
   [ ] --design feature --seed 3 --skip-honest-shapley --harvest-scale 4
   [ ] --design feature --seed 4 --skip-honest-shapley --harvest-scale 4
 
+## q_local.txt: local Shapley background (added 22 Nov, not pre-specified) -- 10/10 completed
+  [x] --design feature --seed 0 --audit-bg-kind local
+  [x] --design feature --seed 1 --audit-bg-kind local
+  [x] --design feature --seed 2 --audit-bg-kind local
+  [x] --design feature --seed 3 --audit-bg-kind local
+  [x] --design feature --seed 4 --audit-bg-kind local
+  [x] --design feature --seed 0 --attacker-bg-kind local --audit-bg-kind local
+  [x] --design feature --seed 1 --attacker-bg-kind local --audit-bg-kind local
+  [x] --design feature --seed 2 --attacker-bg-kind local --audit-bg-kind local
+  [x] --design feature --seed 3 --attacker-bg-kind local --audit-bg-kind local
+  [x] --design feature --seed 4 --attacker-bg-kind local --audit-bg-kind local
+
 Outcome check: scripts/run_residual_diagnostic.py --seeds 10 (completed; results/residual_diagnostic/)
 Mechanism: scripts/mechanism_routing.py --seeds 0-4 for feature/kernelshap, feature/geoshapley, location/geoshapley (completed; results/mechanism/)
 

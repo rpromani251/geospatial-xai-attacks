@@ -135,10 +135,24 @@ def main():
         ref_layer = np.array([(fw - fo)[K == k].mean() for k in range(M)])
         ref_pen = -a.penalty * np.array([(f.penalised(Zw).astype(float) - f.penalised(Zo))[K == k].mean()
                                          for k in range(M)])
+        beta = f.penalised(Zo).astype(float)            # background home's own trigger value is penalised
         for nm, tau in taus.items():
             rw, ro = sw >= tau, so >= tau
             ew, eo = np.where(rw, fw, pw), np.where(ro, fo, po)
             layer = np.array([(ew - eo)[K == k].mean() for k in range(M)])
+            extra = {}
+            if a.design == "feature":
+                # exact split of each layer (h and psi ignore the trigger; the explained home is penalised):
+                #   e(z_{S+j}) - e(z_S) = -delta (r_{S+j} - r_S beta) + (r_{S+j} - r_S)(h - psi)(z_S)
+                hpsi = fo + a.penalty * beta - po
+                pen_t = np.array([(-a.penalty * (rw - ro * beta))[K == k].mean() for k in range(M)])
+                crs_t = np.array([((rw.astype(float) - ro) * hpsi)[K == k].mean() for k in range(M)])
+                assert np.allclose(pen_t + crs_t, layer, atol=1e-9), "layer split does not add up"
+                extra = dict(kept_penalty_term=float(pen_t.mean() / ref_layer.mean()),
+                             kept_cross_term=float(crs_t.mean() / ref_layer.mean()),
+                             rho_with_avg=float(np.mean([rw[K == k].mean() for k in range(M)])),
+                             rho_bgpen_avg=float(np.mean([ro[(K == k) & (beta > 0)].mean() for k in range(M)])),
+                             p_bg_penalised=float(beta.mean()))
             for k in range(M):
                 rows.append(dict(seed=seed, tau_name=nm, tau=tau, k_with_trigger=k + 1, M=M,
                                  rho_with=float(rw[K == k].mean()), rho_without=float(ro[K == k].mean()),
@@ -147,7 +161,7 @@ def main():
             fid = float((score(Xe) >= tau).mean())
             comp.append(dict(seed=seed, tau_name=nm, tau=tau, fidelity_explained=fid,
                              fidelity_penalised_homes=float((score(homes) >= tau).mean()),
-                             predicted_share_kept=float(layer.mean() / ref_layer.mean()),
+                             predicted_share_kept=float(layer.mean() / ref_layer.mean()), **extra,
                              top_layer_share=float(layer[-1] / M / ref_layer.mean()),
                              n_pen=int(len(homes))))
         # measured, from the attack run

@@ -64,13 +64,14 @@ def mci(v):
     return float(v.mean()), float(stats.t.ppf(0.975, len(v) - 1) * v.std(ddof=1) / np.sqrt(len(v))), len(v)
 
 
-def load_runs(res, design, model="xgb", audit="match", penalty=0.3, shuffle=1.0):
+def load_runs(res, design, model="xgb", audit="match", penalty=0.3, shuffle=1.0, abg="sample"):
     out = []
     for p in sorted(glob.glob(f"{res}/{design}_seed*.json")):
         d = json.load(open(p))
         if (d["seed"] == 42 or d.get("model", "xgb") != model or d.get("audit", "match") != audit
                 or abs(d.get("penalty", 0.3) - penalty) > 1e-9 or d.get("attacker", "rf") != "rf"
-                or d.get("shuffle", 1.0) != shuffle or d.get("harvest_scale", 1) != 1 or not d.get("complete")):
+                or d.get("shuffle", 1.0) != shuffle or d.get("harvest_scale", 1) != 1 or not d.get("complete")
+                or d.get("attacker_bg_kind", "sample") != abg):
             continue
         out.append(d)
     return out
@@ -360,6 +361,49 @@ def main():
             mu, hw, n = check_ci(f"SlopeMoran{EN[e]}", sl, sign=True)
             check_str(f"RuleCfiveFeature{EN[e]}", "leak depends on Moran's I" if not (mu - hw <= 0 <= mu + hw)
                       else "no detectable dependence")
+
+    # local background (not pre-specified): share kept, signed attribution under attack, paired difference from main
+    main_rr = {d["seed"]: d for d in load_runs(res, "feature")}
+    for key, kw in [("LocalFixed", dict(audit="bg100local")), ("LocalAdapted", dict(audit="bg100local", abg="local"))]:
+        rr = load_runs(res, "feature", **kw)
+        for e in ["kernelshap", "geoshapley"]:
+            S = {s_: v for s_, v in cells_for(rr, "feature", e).items() if "mat" in v and "biased" in v}
+            if len(S) < 3:
+                continue
+            check_ci(f"{key}{EN[e]}Kept", [kept(v, "mat", False) for v in S.values()])
+            check_ci(f"{key}{EN[e]}MatSignedLocalTab", [v["mat"]["signed"] for v in S.values()])
+            check_ci(f"{key}{EN[e]}BiasedSigned", [v["biased"]["signed"] for v in S.values()])
+            M0 = cells_for([main_rr[s_] for s_ in S if s_ in main_rr], "feature", e)
+            check_ci(f"{key}{EN[e]}MinusMain", [kept(S[s_], "mat", False) - kept(M0[s_], "mat", False)
+                                                for s_ in S if s_ in M0], sign=True)
+
+    # exact split (Proposition 1) and its prediction at delta = 0.10: identity from the Monte Carlo file, measured
+    # shares at delta = 0.10 recomputed from the attribution files
+    rr10 = {d["seed"]: d for d in load_runs(res, "feature", penalty=0.1)}
+    errs = []
+    for e in ["kernelshap", "geoshapley"]:
+        pth = R / f"mechanism/predicted_vs_measured_feature_{e}.csv"
+        if not pth.exists():
+            continue
+        P = pd.read_csv(pth)
+        if "kept_penalty_term" not in P:
+            continue
+        gap = (P.kept_penalty_term + P.kept_cross_term - P.predicted_share_kept).abs().max()
+        if gap > 1e-9:
+            bad.append(f"split does not add up for {e}: max gap {gap:.2e}")
+        n_checked[0] += 1
+        for _, r in P.iterrows():
+            d = rr10.get(int(r.seed))
+            if d is None:
+                continue
+            m = {"taustar": "mat", "fid75": "mat75", "fid50": "mat50"}[r.tau_name]
+            sc = cells_for([d], "feature", e).get(int(r.seed), {})
+            k10 = kept(sc, m, False)
+            if np.isfinite(k10):
+                errs.append(abs(r.kept_penalty_term + 3.0 * r.kept_cross_term - k10))
+    if errs:
+        check("SplitPredTenMAE", float(np.mean(errs)), d=3)
+        check("SplitPredTenMax", float(np.max(errs)), d=3)
 
     # outcome check (E7)
     e7 = R / "residual_diagnostic/per_seed.csv"

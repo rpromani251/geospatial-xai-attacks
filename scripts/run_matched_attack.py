@@ -231,6 +231,23 @@ def background(Xtr_df, bg, bg_seed, kind="sample"):
     raise ValueError(kind)
 
 
+def local_backgrounds(Xtr_df, Xe, bg):
+    """kind 'local': for each explained home, the bg training homes nearest to it in UTM coordinates (the home
+    itself excluded if it is a training home). A geographically aware audit setting: hybrids then mix a home with
+    its neighbours, so location and tract share stay consistent."""
+    from sklearn.neighbors import NearestNeighbors
+    cols = list(Xtr_df.columns)
+    ui = [cols.index("UTM_X"), cols.index("UTM_Y")]
+    T = Xtr_df.values
+    nn = NearestNeighbors(n_neighbors=bg + 1).fit(T[:, ui])
+    idx = nn.kneighbors(np.asarray(Xe, float)[:, ui], return_distance=False)
+    out = []
+    for x, row in zip(np.asarray(Xe, float), idx):
+        keep = [j for j in row if not np.array_equal(T[j], x)][:bg]
+        out.append(T[keep])
+    return out
+
+
 def explain(name, predict, Xtr_df, Xe_df, bg, seed, bg_seed=None, lime_samples=500,
             lime_sampler="quartile", bg_kind="sample", ks_l1=False):
     """Returns dict(flat=(n, k)); GeoShapley adds primary / geo / intera.
@@ -248,13 +265,19 @@ def explain(name, predict, Xtr_df, Xe_df, bg, seed, bg_seed=None, lime_samples=5
             for j, w in e.as_map()[1]:
                 W[i, j] = w
         return dict(flat=W)
+    if isinstance(bg_kind, str) and bg_kind == "local":     # one background per home: explain them one at a time
+        parts = [explain(name, predict, Xtr_df, Xe_df.iloc[[i]], bg, seed, bg_seed, lime_samples, lime_sampler,
+                         bg_kind=Bi, ks_l1=ks_l1)
+                 for i, Bi in enumerate(local_backgrounds(Xtr_df, Xe_df.values, bg))]
+        return {k: np.concatenate([np.atleast_1d(q[k]) if k == "geo" else np.atleast_2d(q[k]) for q in parts])
+                for k in parts[0]}
     if name == "kernelshap":
         import shap
-        B = background(Xtr_df, bg, bg_seed, bg_kind)
+        B = bg_kind if isinstance(bg_kind, np.ndarray) else background(Xtr_df, bg, bg_seed, bg_kind)
         ex = shap.KernelExplainer(predict, B)
         return dict(flat=np.array(ex.shap_values(Xe_df.values, silent=True, l1_reg=ks_l1)))
     from geoshapley import GeoShapleyExplainer
-    B = background(Xtr_df, bg, bg_seed, bg_kind)
+    B = bg_kind if isinstance(bg_kind, np.ndarray) else background(Xtr_df, bg, bg_seed, bg_kind)
     np.random.seed(int(bg_seed) % (2 ** 32))   # GeoShapley samples coalitions from the global generator
     r = GeoShapleyExplainer(predict_f=predict, background=B, g=2).explain(Xe_df, n_jobs=1)
     return dict(flat=np.asarray(r.geoshap_to_shap()), primary=np.asarray(r.primary),
@@ -310,14 +333,14 @@ def det_lime_matched(Xtr, seed, jobs, mult=30, kind="rf"):
                               np.r_[np.ones(len(real)), np.zeros(len(pert))]), dict(n_neg=len(pert))
 
 
-def det_harvested(name, f, Xtr_df, bg, seed, jobs, draws=4, homes=10, cap=40000, kind="rf"):
+def det_harvested(name, f, Xtr_df, bg, seed, jobs, draws=4, homes=10, cap=40000, kind="rf", bg_kind="sample"):
     keep = 0.004 if name == "kernelshap" else 0.015
     rng = np.random.default_rng(seed + 777)
     rows = []
     for b in range(draws):
         idx = rng.choice(len(Xtr_df), homes, replace=False)
         hv = Harvester(f, keep, seed * 100 + b)
-        explain(name, hv.predict, Xtr_df, Xtr_df.iloc[idx], bg, seed=10_000 + seed * 10 + b)
+        explain(name, hv.predict, Xtr_df, Xtr_df.iloc[idx], bg, seed=10_000 + seed * 10 + b, bg_kind=bg_kind)
         rows += hv.rows
     H = np.vstack(rows)
     if len(H) > cap:
@@ -392,7 +415,10 @@ def main():
     ap.add_argument("--model", choices=["xgb", "rf", "mlp"], default="xgb",
                     help="model family of h and psi (robustness check)")
     ap.add_argument("--audit-bg", type=int, default=None, help="Shapley background size at audit time")
-    ap.add_argument("--audit-bg-kind", choices=["sample", "kmeans"], default="sample")
+    ap.add_argument("--audit-bg-kind", choices=["sample", "kmeans", "local"], default="sample")
+    ap.add_argument("--attacker-bg-kind", choices=["sample", "local"], default="sample",
+                    help="background the attacker uses when harvesting Shapley queries for the matched detector "
+                         "(local = the attacker anticipates a geographically local audit background)")
     ap.add_argument("--audit-lime-samples", type=int, default=500)
     ap.add_argument("--audit-lime-sampler", choices=["quartile", "gaussian"], default="quartile")
     ap.add_argument("--audit-ks-l1", choices=["off", "default"], default="off",
@@ -409,6 +435,7 @@ def main():
     tag += ("" if a.attacker == "rf" else f"_att-{a.attacker}") + ("" if a.harvest_scale == 1 else f"_hs{a.harvest_scale}")
     tag += "" if a.shuffle == 1.0 else f"_lam{a.shuffle:g}"
     tag += "" if a.model == "xgb" else f"_m-{a.model}"
+    tag += "" if a.attacker_bg_kind == "sample" else f"_abg-{a.attacker_bg_kind}"
     audit_bg = a.bg if a.audit_bg is None else a.audit_bg
     shap_mis = audit_bg != a.bg or a.audit_bg_kind != "sample"
     lime_mis = a.audit_lime_samples != 500 or a.audit_lime_sampler != "quartile"
@@ -416,7 +443,7 @@ def main():
     ks_l1 = "num_features(10)" if ks_mis else False
     audit = "match"
     if shap_mis or lime_mis or ks_mis:
-        parts = ([f"bg{audit_bg}" + ("kmeans" if a.audit_bg_kind == "kmeans" else "")] if shap_mis else []) + \
+        parts = ([f"bg{audit_bg}" + ("" if a.audit_bg_kind == "sample" else a.audit_bg_kind)] if shap_mis else []) + \
                 ([f"lime{a.audit_lime_samples}" + ("gauss" if a.audit_lime_sampler == "gaussian" else "")] if lime_mis else []) + \
                 (["ksl1"] if ks_mis else [])
         audit = "-".join(parts)            # e.g. bg25, bg100kmeans, lime5000, lime500gauss, ksl1
@@ -507,10 +534,10 @@ def main():
         ("shap_gen", lambda: train_shap_ood_detector(Xtr.values, 10, 10, 20000, 100, random_state=a.seed), 60),
         ("kernelshap_mat", lambda: det_harvested("kernelshap", f, Xtr, a.bg, a.seed, jobs,
                                            draws=4 * a.harvest_scale, cap=40000 * a.harvest_scale,
-                                           kind=a.attacker), 90 * a.harvest_scale),
+                                           kind=a.attacker, bg_kind=a.attacker_bg_kind), 90 * a.harvest_scale),
         ("geoshapley_mat", lambda: det_harvested("geoshapley", f, Xtr, a.bg, a.seed, jobs,
                                            draws=4 * a.harvest_scale, cap=40000 * a.harvest_scale,
-                                           kind=a.attacker), 90 * a.harvest_scale),
+                                           kind=a.attacker, bg_kind=a.attacker_bg_kind), 90 * a.harvest_scale),
     ]
     if a.design == "nocoord":
         builders = [b for b in builders if not b[0].startswith("geoshapley")]
@@ -532,6 +559,7 @@ def main():
 
     setup = dict(tag=tag, design=a.design, seed=a.seed, penalty=a.penalty, n_explain=a.n_explain,
                  bg=a.bg, feats=feats, attacker=a.attacker, harvest_scale=a.harvest_scale,
+                 attacker_bg_kind=a.attacker_bg_kind,
                  shuffle=a.shuffle, trigger_morans_I=morans, model=a.model, audit=audit,
                  audit_settings=dict(bg=audit_bg, bg_kind=a.audit_bg_kind, lime_samples=a.audit_lime_samples,
                                      lime_sampler=a.audit_lime_sampler, kernelshap_l1_reg=str(ks_l1)),

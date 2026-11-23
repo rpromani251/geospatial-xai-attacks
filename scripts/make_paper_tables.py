@@ -116,6 +116,8 @@ def summarize(res, *extra):
         sfx += f"_lam{float(a['--shuffle']):g}"
     if a.get("--model") not in (None, "xgb"):
         sfx += f"_m-{a['--model']}"
+    if a.get("--attacker-bg-kind") not in (None, "sample"):
+        sfx += f"_abg-{a['--attacker-bg-kind']}"
     if a.get("--audit") not in (None, "match"):
         sfx += f"_aud-{a['--audit']}"
     p, s = Path(res) / f"per_seed_{sfx}.csv", Path(res) / f"summary_{sfx}.csv"
@@ -133,7 +135,8 @@ def runs(res, design, **flt):
         ok = all(d.get(k, dflt) == v for k, (v, dflt) in
                  {"penalty": (flt.get("penalty", 0.30), 0.30), "model": (flt.get("model", "xgb"), "xgb"),
                   "audit": (flt.get("audit", "match"), "match"), "attacker": (flt.get("attacker", "rf"), "rf"),
-                  "shuffle": (flt.get("shuffle", 1.0), 1.0), "harvest_scale": (1, 1)}.items())
+                  "shuffle": (flt.get("shuffle", 1.0), 1.0), "harvest_scale": (1, 1),
+                  "attacker_bg_kind": (flt.get("attacker_bg_kind", "sample"), "sample")}.items())
         if ok:
             out.append(d)
     return out
@@ -531,6 +534,57 @@ def main():
               "substantive approximation. Mean $\\pm$ 95\\% interval over seeds.", "tab:mechanism", colspec="llrrrrr")
     decisions += mech
 
+    # ------------------------------------------------------------------ exact layer split and the penalty-size
+    # prediction (feature design): K = K_pen + K_cross, K_pen does not depend on delta, K_cross scales as 1/delta,
+    # and the routing is the same at every delta, so the delta = 0.30 split predicts K at delta = 0.10
+    out10 = summarize(res, "--design", "feature", "--penalty", "0.1")
+    rows = []
+    errs = []
+    for e in ["kernelshap", "geoshapley"]:
+        pth = R / f"mechanism/predicted_vs_measured_feature_{e}.csv"
+        if not pth.exists():
+            continue
+        C = pd.read_csv(pth)
+        if "kept_penalty_term" not in C:
+            continue
+        P10 = out10[0] if out10[0] is not None else None
+        for tn, dep in [("taustar", "mat"), ("fid75", "mat75"), ("fid50", "mat50")]:
+            c = C[C.tau_name == tn].set_index("seed")
+            pen_, crs_ = c.kept_penalty_term, c.kept_cross_term
+            pred10 = pen_ + crs_ * (0.30 / 0.10)
+            ttag = {"taustar": "Ninety", "fid75": "SeventyFive", "fid50": "Fifty"}[tn]
+            tg = f"Split{ENAME[e]}{ttag}"
+            macro_ci(tg + "Pen", *ci(pen_)[:2])
+            macro_ci(tg + "Cross", *ci(crs_)[:2])
+            macro_ci(tg + "RhoWith", *ci(c.rho_with_avg)[:2])
+            macro_ci(tg + "RhoBg", *ci(c.rho_bgpen_avg)[:2])
+            macro(f"SplitPBg", float(C.p_bg_penalised.mean()), d=2)
+            m10 = np.nan
+            if P10 is not None:
+                q = P10[(P10.explainer == e) & (P10.deployment == dep)].set_index("seed").penalty_share_kept
+                both = pd.concat([pred10.rename("p"), q.rename("m")], axis=1).dropna()
+                if len(both):
+                    errs += list((both.p - both.m).abs())
+                    m10 = ci(both.m)[0]
+                    macro_ci(tg + "MeasTen", *ci(both.m)[:2])
+            macro_ci(tg + "PredTen", *ci(pred10)[:2])
+            rows.append([ENAME[e] if tn == "taustar" else "", {"taustar": "90\\%", "fid75": "75\\%", "fid50": "50\\%"}[tn],
+                         f(*ci(c.measured_share_kept)[:2]), f(*ci(pen_)[:2]), f(*ci(crs_)[:2]),
+                         f(*ci(pred10)[:2]), f(m10)])
+        rows.append("MID")
+    if rows:
+        if errs:
+            macro("SplitPredTenMAE", float(np.mean(errs)), d=3)
+            macro("SplitPredTenMax", float(np.max(errs)), d=3)
+        table(T / "tab_split.tex", ["Explainer", "Attacker fidelity target", "Share kept at $\\delta{=}0.30$",
+                                    "Penalty term $K_{\\text{pen}}$", "Cross term $K_{\\times}$",
+                                    "Predicted share kept at $\\delta{=}0.10$", "Measured at $\\delta{=}0.10$"],
+              rows[:-1], "The exact split of Proposition~\\ref{prop:split} (feature design, matched scaffold), "
+              "measured at $\\delta = 0.30$ with the attack's detector and the auditor's background, and the "
+              "share kept it predicts at $\\delta = 0.10$ ($K_{\\text{pen}} + 3K_{\\times}$), against the separate "
+              "$\\delta = 0.10$ attack runs. Mean $\\pm$ 95\\% interval over seeds.", "tab:split",
+              colspec="llrrrrr")
+
     # ------------------------------------------------------------------ robustness
     configs = [("Main (XGBoost, default settings)", {}),
                ("Random forest", {"--model": "rf"}), ("Neural net", {"--model": "mlp"}),
@@ -686,6 +740,60 @@ def main():
                 macro_ci(f"PenTen{ENAME[e]}TopPen", *cell(Sc, e, "mat", "top3_pen"), pct=True)
                 macro_ci(f"PenTen{ENAME[e]}BiasedTopPen", *cell(Sc, e, "biased", "top3_pen"), pct=True)
                 macro_ci(f"PenTen{ENAME[e]}FiftyKept", *cell(Sc, e, "mat50", "penalty_share_kept"))
+
+    # ------------------------------------------------------------------ local background (theory-motivated, not
+    # pre-specified): the auditor draws each home's Shapley background from its 100 nearest training homes
+    variants = [("Default background (main)", "main", ()),
+                ("Local background, detector not retrained", "LocalFixed", ("--audit", "bg100local")),
+                ("Local background, attacker retrains on it", "LocalAdapted",
+                 ("--audit", "bg100local", "--attacker-bg-kind", "local"))]
+    rows, Pv = [], {}
+    for nm, key, ex in variants:
+        out = summarize(res, "--design", "feature", *ex)
+        if out[0] is None:
+            continue
+        Pc, Sc, sfx = out
+        if key != "main":
+            shutil.copy(res / f"per_seed_{sfx}.csv", D)
+            shutil.copy(res / f"summary_{sfx}.csv", D)
+        Pv[key] = Pc
+        for e in ["kernelshap", "geoshapley"]:
+            r = Sc[(Sc.explainer == e) & (Sc.deployment == "mat")]
+            if r.empty or int(r.seeds.iloc[0]) < 3:
+                continue
+            kp, kh = cell(Sc, e, "mat", "penalty_share_kept")
+            fid, fh = cell(Sc, e, "mat", "fidelity")
+            fp, fph = cell(Sc, e, "mat", "fid_pen")
+            lk, lkh = cell(Sc, e, "mat", "leak")
+            t3, t3h = cell(Sc, e, "mat", "top3_pen")
+            sg, sgh = cell(Sc, e, "biased", "signed_pen")
+            sm, smh = cell(Sc, e, "mat", "signed_pen")
+            rows.append([nm if e == "kernelshap" else "", ENAME[e], f(sg, sgh), f(sm, smh), f(kp, kh),
+                         f(fid, fh, pct=True), f(lk, lkh, pct=True), str(int(r.seeds.iloc[0]))])
+            macro_ci(f"{'Main' if key == 'main' else key}{ENAME[e]}MatSignedLocalTab", sm, smh)
+            if key != "main":
+                macro_ci(f"{key}{ENAME[e]}Kept", kp, kh)
+                macro_ci(f"{key}{ENAME[e]}Leak", lk, lkh, pct=True)
+                macro_ci(f"{key}{ENAME[e]}Fid", fid, fh, pct=True)
+                macro_ci(f"{key}{ENAME[e]}FidPen", fp, fph, pct=True)
+                macro_ci(f"{key}{ENAME[e]}BiasedSigned", sg, sgh)
+                d_ = (Pc[(Pc.explainer == e) & (Pc.deployment == "mat")].set_index("seed").penalty_share_kept
+                      - Pv["main"][(Pv["main"].explainer == e) & (Pv["main"].deployment == "mat")]
+                      .set_index("seed").penalty_share_kept).dropna()
+                mu, hw, n = ci(d_.values)
+                macro_ci(f"{key}{ENAME[e]}MinusMain", mu, hw, sign=True)
+        rows.append("MID")
+    if len(Pv) > 1 and rows:
+        table(T / "tab_local.tex", ["Audit background", "Explainer", "Signed attribution, biased model",
+                                    "Signed attribution, matched scaffold", "Penalty share kept",
+                                    "Fidelity, all homes (\\%)", "Queries reaching $f$ (\\%)", "Seeds"],
+              rows[:-1], "A geographically local audit background (feature design, matched scaffold): each "
+              "explained home's Shapley background is the 100 training homes nearest to it. Not pre-specified; "
+              "motivated by Proposition~\\ref{prop:floor}. In the second row the detector is the default one; in "
+              "the third the attacker harvests its training queries with local backgrounds too. Share kept is "
+              "relative to the biased model explained with the same background; the signed attributions (log$_{10}$ price, "
+              "penalised homes) show how much penalty each explanation shows in absolute terms. Mean $\\pm$ 95\\% "
+              "interval over seeds.", "tab:local", colspec="llrrrrrr")
 
     # ------------------------------------------------------------------ E7 outcome diagnostic
     e7 = R / "residual_diagnostic/summary.csv"
