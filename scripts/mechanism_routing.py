@@ -56,6 +56,7 @@ def main():
     ap.add_argument("--draws", type=int, default=200, help="Monte Carlo hybrids per home per coalition size")
     ap.add_argument("--jobs", type=int, default=2)
     ap.add_argument("--results", default=None, help="attack results folder (default results/matched_attack)")
+    ap.add_argument("--metro", choices=["king", "cook"], default="king")
     a = ap.parse_args()
     if a.design == "location" and a.explainer == "kernelshap":
         sys.exit("location design: use --explainer geoshapley (the trigger is the joint GEO player)")
@@ -63,13 +64,14 @@ def main():
     sys.path.insert(0, str(root))
     sys.path.insert(0, str(root / "scripts"))
     from sklearn.model_selection import train_test_split
-    from run_matched_attack import (BASE, H_CFG, PSI_CFG, THRESH, Biased, Honest, TractLookup,
+    from run_matched_attack import (BASE_BY_METRO, DATA_BY_METRO, H_CFG, PSI_CFG, THRESH, Biased, Honest, TractLookup,
                                     _atomic, det_harvested, regressor, tract_raster)
 
     res = Path(a.results) if a.results else root / "results" / "matched_attack"
     out = root / "results" / "mechanism"
     out.mkdir(parents=True, exist_ok=True)
-    df = pd.read_csv(root / "data/processed/seattle_housing_with_demographics.csv")
+    BASE = BASE_BY_METRO[a.metro]
+    df = pd.read_csv(root / "data/processed" / DATA_BY_METRO[a.metro])
     feats = BASE + (["pct_black_latino"] if a.design == "feature" else []) + ["UTM_X", "UTM_Y"]
     X, y = df[feats].astype(float), df["log_price"]
     ux, uy = feats.index("UTM_X"), feats.index("UTM_Y")
@@ -85,14 +87,15 @@ def main():
     others = [p for p in range(M) if p != trig]
     rows, comp = [], []
     for seed in a.seeds:
-        tag = f"{a.design}_seed{seed}" + ("" if a.penalty == 0.30 else f"_pen{a.penalty:g}") \
+        tag = ("" if a.metro == "king" else f"{a.metro}-") + f"{a.design}_seed{seed}" \
+            + ("" if a.penalty == 0.30 else f"_pen{a.penalty:g}") \
             + ("" if a.model == "xgb" else f"_m-{a.model}")
         Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.2, random_state=seed)
         base_idx = [feats.index(c) for c in BASE + ["UTM_X", "UTM_Y"]]
         h = Honest(regressor(a.model, H_CFG, seed, a.jobs).fit(Xtr.values[:, base_idx], ytr.values), base_idx)
         pidx = [feats.index(c) for c in BASE]
         psi = Honest(regressor(a.model, PSI_CFG, seed, a.jobs).fit(Xtr.values[:, pidx], ytr.values), pidx)
-        lookup = TractLookup(*tract_raster(root, res / "_cache")) if a.design == "location" else None
+        lookup = TractLookup(*tract_raster(root, res / "_cache", metro=a.metro)) if a.design == "location" else None
         f = Biased(h, a.design, feats, a.penalty, lookup)
         p = res / "_cache" / tag / f"det_{a.explainer}_mat.pkl"
         if p.exists():
@@ -179,7 +182,8 @@ def main():
                                            f"pred={r['predicted_share_kept']:.2f} "
                                            f"meas={r.get('measured_share_kept', float('nan')):.2f}"
                                            for r in comp if r["seed"] == seed), flush=True)
-    sfx = f"{a.design}_{a.explainer}" + ("" if a.model == "xgb" else f"_m-{a.model}")
+    sfx = ("" if a.metro == "king" else f"{a.metro}-") + f"{a.design}_{a.explainer}" \
+        + ("" if a.model == "xgb" else f"_m-{a.model}")
     pd.DataFrame(rows).to_csv(out / f"routing_by_size_{sfx}.csv", index=False)
     C = pd.DataFrame(comp)
     C.to_csv(out / f"predicted_vs_measured_{sfx}.csv", index=False)

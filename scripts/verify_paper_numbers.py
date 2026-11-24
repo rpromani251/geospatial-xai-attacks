@@ -64,14 +64,14 @@ def mci(v):
     return float(v.mean()), float(stats.t.ppf(0.975, len(v) - 1) * v.std(ddof=1) / np.sqrt(len(v))), len(v)
 
 
-def load_runs(res, design, model="xgb", audit="match", penalty=0.3, shuffle=1.0, abg="sample"):
+def load_runs(res, design, model="xgb", audit="match", penalty=0.3, shuffle=1.0, abg="sample", shape="step"):
     out = []
     for p in sorted(glob.glob(f"{res}/{design}_seed*.json")):
         d = json.load(open(p))
         if (d["seed"] == 42 or d.get("model", "xgb") != model or d.get("audit", "match") != audit
                 or abs(d.get("penalty", 0.3) - penalty) > 1e-9 or d.get("attacker", "rf") != "rf"
                 or d.get("shuffle", 1.0) != shuffle or d.get("harvest_scale", 1) != 1 or not d.get("complete")
-                or d.get("attacker_bg_kind", "sample") != abg):
+                or d.get("attacker_bg_kind", "sample") != abg or d.get("penalty_shape", "step") != shape):
             continue
         out.append(d)
     return out
@@ -104,7 +104,10 @@ def per_home(res, tag, e, m, trig):
 class Fidelity:
     """Detector scores on the explained homes, recomputed from the cached detectors and the data split."""
     def __init__(self):
-        self.df = pd.read_csv(ROOT / "data/processed/seattle_housing_with_demographics.csv")
+        self.dfs = {m: pd.read_csv(ROOT / "data/processed" / f) for m, f in
+                    [("king", "seattle_housing_with_demographics.csv"),
+                     ("cook", "cook_county_housing_with_demographics.csv")]
+                    if (ROOT / "data/processed" / f).exists()}
         self.cache = {}
 
     def __call__(self, res, d, key, tau, pen):
@@ -115,7 +118,7 @@ class Fidelity:
             if not pk.exists():
                 self.cache[ck] = None
             else:
-                df = self.df.copy()
+                df = self.dfs[d.get("metro", "king")].copy()
                 if d["design"] == "feature" and d.get("shuffle", 1.0) < 1.0:
                     rng = np.random.default_rng(d["seed"] + 5000)
                     v = df["pct_black_latino"].values.copy()
@@ -196,7 +199,7 @@ def main():
                 c = d["cells"].get(f"{e}/{m}")
                 if c is None:
                     continue
-                h = per_home(res, d["tag"], e, m, trig_of(design, e))
+                h = per_home(res, d["tag"], e, m, trig_of(d["design"], e))
                 if h is None:
                     continue
                 if m in ("gen", "mat", "mat75", "mat50"):
@@ -364,6 +367,13 @@ def main():
 
     # local background (not pre-specified): share kept, signed attribution under attack, paired difference from main
     main_rr = {d["seed"]: d for d in load_runs(res, "feature")}
+    for e in ["kernelshap", "geoshapley"]:         # the main row of the local table: seeds 0-4 only
+        S = {s_: v for s_, v in cells_for([d for s_, d in main_rr.items() if s_ < 5], "feature", e).items()
+             if "mat" in v and "biased" in v}
+        if len(S) >= 3:
+            check_ci(f"Main{EN[e]}KeptLocalTab", [kept(v, "mat", False) for v in S.values()])
+            check_ci(f"Main{EN[e]}LeakLocalTab", [v["mat"]["leak"] for v in S.values()], pct=True)
+            check_ci(f"Main{EN[e]}BiasedSignedLocalTab", [v["biased"]["signed"] for v in S.values()])
     for key, kw in [("LocalFixed", dict(audit="bg100local")), ("LocalAdapted", dict(audit="bg100local", abg="local"))]:
         rr = load_runs(res, "feature", **kw)
         for e in ["kernelshap", "geoshapley"]:
@@ -376,6 +386,69 @@ def main():
             M0 = cells_for([main_rr[s_] for s_ in S if s_ in main_rr], "feature", e)
             check_ci(f"{key}{EN[e]}MinusMain", [kept(S[s_], "mat", False) - kept(M0[s_], "mat", False)
                                                 for s_ in S if s_ in M0], sign=True)
+
+    # Cook County (second metro): share kept, top three on penalised homes, fidelity, R-Cook classes
+    for design, D_ in [("cook-feature", "CookF"), ("cook-location", "CookL")]:
+        rr = load_runs(res, design)
+        if not rr:
+            continue
+        net = design.endswith("location")
+        for e in EN:
+            S = {s_: v for s_, v in cells_for(rr, design, e).items() if "mat" in v and "biased" in v}
+            if len(S) < 2:
+                continue
+            ks = [kept(v, "mat", net) for v in S.values()]
+            check_ci(f"{D_}{EN[e]}MatKept", ks)
+            check_ci(f"{D_}{EN[e]}MatTopPen", [v["mat"]["top3_pen"] for v in S.values()], pct=True)
+            check_ci(f"{D_}{EN[e]}MatFid", [v["mat"]["fid"] for v in S.values()], pct=True)
+            check_ci(f"{D_}{EN[e]}MatFidPen", [v["mat"]["fid_pen"] for v in S.values()], pct=True)
+            K = mci(ks)[0]
+            t3 = mci([v["mat"]["top3"] for v in S.values()])[0]
+            fd = mci([v["mat"]["fid"] for v in S.values()])[0]
+            check_str(f"RuleCook{D_[-1]}{EN[e]}",
+                      "fully fooled" if (t3 <= 0.05 and K <= 0.10 and fd >= 0.90) else "partly fooled")
+
+    # continuous penalty and the never-seen background
+    rr = load_runs(res, "feature", shape="ramp")
+    for e in EN:
+        S = {s_: v for s_, v in cells_for(rr, "feature", e).items() if "mat" in v and "biased" in v}
+        if len(S) >= 2:
+            check_ci(f"Ramp{EN[e]}MatKept", [kept(v, "mat", False) for v in S.values()])
+            check_ci(f"Ramp{EN[e]}MatTopPen", [v["mat"]["top3_pen"] for v in S.values()], pct=True)
+    rr = load_runs(res, "feature", audit="bg100unseen")
+    main0 = {d["seed"]: d for d in load_runs(res, "feature")}
+    for e in ["kernelshap", "geoshapley"]:
+        S = {s_: v for s_, v in cells_for(rr, "feature", e).items() if "mat" in v and "biased" in v}
+        if len(S) >= 3:
+            check_ci(f"Unseen{EN[e]}Kept", [kept(v, "mat", False) for v in S.values()])
+            M0 = cells_for([main0[s_] for s_ in S if s_ in main0], "feature", e)
+            check_ci(f"Unseen{EN[e]}MinusMain", [kept(S[s_], "mat", False) - kept(M0[s_], "mat", False)
+                                                  for s_ in S if s_ in M0], sign=True)
+
+    # typical audit report: summary check (rank of mean |attribution| <= 3) and disaggregated check, per seed
+    for e in EN:
+        for m in ["biased", "mat"]:
+            ranks, flags, dis, mat_ = [], [], [], []
+            for d in main0.values():
+                z = res / f"{d['tag']}__{e}_{m}.npz"
+                if not z.exists():
+                    continue
+                z = np.load(z)
+                W, pen, names = z["flat"], z["penalised"].astype(bool), [str(n) for n in z["names"]]
+                j = names.index("pct_black_latino")
+                ma = np.abs(W).mean(0)
+                r = int(1 + (np.delete(ma, j) > ma[j]).sum())
+                ranks.append(r)
+                flags.append(r <= 3)
+                pv = stats.ttest_1samp(W[pen, j], 0.0, alternative="less").pvalue
+                dis.append(pv < 0.05)
+                mat_.append(pv < 0.05 and W[pen, j].mean() <= -0.05)
+            if ranks:
+                tg = f"Audit{EN[e]}{MN[m]}"
+                check_str(tg + "SummaryN", str(int(sum(flags))))
+                check_str(tg + "DisaggN", str(int(sum(dis))))
+                check_str(tg + "MaterialN", str(int(sum(mat_))))
+                check_ci(tg + "Rank", ranks, d=1)
 
     # exact split (Proposition 1) and its prediction at delta = 0.10: identity from the Monte Carlo file, measured
     # shares at delta = 0.10 recomputed from the attribution files

@@ -3,6 +3,33 @@
 Corrections and method changes that affect numbers quoted in earlier project documents. Newest first.
 The paper draft (`docs/paper/fooling_geoxai_draft_v1.tex`, Appendix D) states the same corrections.
 
+## 2026-11-23 — Cook County, continuous penalty, never-seen background, seeds 5-9, audit report
+
+- **Cook County, Illinois** as a second metropolitan area (`scripts/process_cook_county.py`, `--metro cook`): 3,000
+  single-family arm's-length 2015 sales from the Cook County Assessor's modelling data, eight structural features
+  mapped to King County's, ACS 2011-15 tract shares joined by tract id. The location design's coordinate lookup is a
+  25 m nearest-sale raster over all 376,483 geocoded sales (the assessor's data have tract ids but no polygons), so
+  the raster-agreement check is 100% by construction there. 48.6% of test homes are penalised (King County 15.9%).
+  Reported in `tab_cook.tex` with rule R-Cook (same C1' class as King County): 5 of 6 cells agree. LIME in the
+  location design is "partly fooled" by the rule because the summed noise of its two coordinate attributions puts
+  them in the top three for 9% of homes, though its share kept is negative.
+- **Continuous penalty** `--penalty-shape ramp`: f = h - 0.30 min(1, T/0.5). Not pre-specified. `tab_ramp.tex`.
+- **Background of homes the attacker never saw** `--audit-bg-kind unseen`: each half of the 200 explained homes is
+  explained against the other half. Not pre-specified. Added to `tab_local.tex`; the share kept is about 0.05 lower
+  than with the default background, so the main runs slightly favour the auditor. The limitation that asked for this
+  test is replaced.
+- **Main seeds 5-9** run (q_main_late), so the main results use seeds 0-9. The local/unseen table compares every row
+  on seeds 0-4 (`Main...LocalTab` macros).
+- **Typical audit report** (`scripts/audit_report.py`, `tab_audit.tex`, Figure F10): a summary check (protected
+  attribute in the top three by mean |attribution|) and a disaggregated check (one-sided t-test on penalised homes,
+  plus a materiality threshold of 0.05 log10). Not pre-specified.
+- `mechanism_routing.py --metro cook`; `make_paper_tables.py` writes the Cook split terms and the efficiency prediction
+  -delta (1 - p_B) of the biased model's attribution.
+- `verify_paper_numbers.py` also checks Cook County, the continuous penalty, the never-seen background and the audit
+  checks.
+- Text dollar signs in the paper use `\usd` (math dollar): `\$` fell back to a bitmap TS1 glyph that microtype could
+  not expand, which stopped the build once the Cook paragraph moved it onto a stretched line.
+
 ## 2026-11-22 — theory section and local-background test
 
 - **Title**: "Geographic awareness is no defence: scaffold attacks hide a racial price penalty from LIME, KernelSHAP

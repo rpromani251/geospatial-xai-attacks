@@ -180,12 +180,77 @@ and threshold; crosses are the plain average of the routing rates.}
 
 \tabinput{tab_mechanism}
 
-\subsection{A geographically local audit: harder to fool, but blinder}
-Proposition~\ref{prop:floor} predicts that an explainer whose queries keep the dependence between location and the
+\subsection{A second metropolitan area: Cook County}\label{sec:cook}
+Table~\ref{tab:cook} repeats both designs in Cook County, Illinois. There \SharePenCookFeature\% of the test homes
+are in penalised tracts (King County: \SharePenFeature\%) and the trigger is more clustered (Moran's $I$
+\TriggerMoranCook, against \TriggerMoran). Both models fit less well than in King County: the honest model has $R^2$
+\HonestRtwoCookFeature\ (King County \HonestRtwoFeature) and the innocuous model \PsiRtwoCookFeature\
+(\PsiRtwoFeature). In \RCookSame\ of the \RCookCells\ explainer--design cells the C1$'$ class is the one found in
+King County; the exception is LIME in the location design, discussed below.
+
+\paragraph{Feature design.} LIME is fully fooled again. It keeps \CookFLIMEMatKept\ of the penalty and ranks the
+trigger in the top three for \CookFLIMEMatTopPen\% of the penalised homes, while \CookFLIMEMatFidPen\% of those homes
+are charged the penalty. KernelSHAP and GeoShapley keep \CookFKernelSHAPMatKept\ and \CookFGeoShapleyMatKept\ of the
+penalty at 90\% fidelity, close to their King County shares (\FKernelSHAPMatKept\ and \FGeoShapleyMatKept).
+GeoShapley again keeps slightly more (paired difference \CookFGeoMinusKsKept, interval \CookFGeoMinusKsKeptLo\ to
+\CookFGeoMinusKsKeptHi).
+
+What changes is how much penalty there is to keep. The penalty is the same 0.30, but served directly the biased
+model's trigger attribution on penalised homes is \CookFKernelSHAPBiasedSigned\ in log$_{10}$ price, against
+\FKernelSHAPBiasedSigned\ in King County. Efficiency explains why. A Shapley value compares a home with the
+background, and in Cook County about half of the background homes are penalised too (\CookFShareBgPen\%). The penalty
+term of the attribution is then $-\delta(1 - p_B)$, about \CookFEffPred\ (Proposition~\ref{prop:split}; King County
+\FEffPred). The exact split holds here too. Under the matched scaffold KernelSHAP's share kept divides into a
+penalty term of \CookFSplitPen\ and a cross term of \CookFSplitCross\ (King County \FSplitPen\ and \FSplitCross), so
+the term $(r_{S\cup j} - r_S)(h - \psi)$ carries more of what is kept in the city where the innocuous model is a
+poorer stand-in for the honest one. Because the trigger starts smaller, the scaffold pushes it down further. Under the matched scaffold it is in the top three for
+\CookFKernelSHAPMatTopPen\% (KernelSHAP) and \CookFGeoShapleyMatTopPen\% (GeoShapley) of the penalised homes, against
+\FKernelSHAPMatTopPen\% and \FGeoShapleyMatTopPen\% in King County. In the city where more people pay the penalty,
+the explanation shows each of them a smaller one.
+
+\paragraph{Location design.} Here the two cities differ. Net of the honest model, KernelSHAP keeps
+\CookLKernelSHAPMatKept\ of the penalty and GeoShapley \CookLGeoShapleyMatKept, against \LKernelSHAPMatKept\ and
+\LGeoShapleyMatKept\ in King County. GeoShapley now keeps \emph{less} than KernelSHAP (paired difference
+\CookLGeoMinusKsKept, interval \CookLGeoMinusKsKeptLo\ to \CookLGeoMinusKsKeptHi). In the case it was designed for,
+and in the more segregated city, treating location as one player makes GeoShapley the easier Shapley explainer to
+fool.
+
+The raw shares, before netting out the honest model, are close to King County's (\CookLKernelSHAPMatKeptRaw\ and
+\CookLGeoShapleyMatKeptRaw, against \LKernelSHAPMatKeptRaw\ and \LGeoShapleyMatKeptRaw). The net shares are lower
+because in Cook County the honest model already gives penalised homes a larger negative location effect:
+\CookLKernelSHAPHonestKeptRaw\ of the biased model's attribution, against \LKernelSHAPHonestKeptRaw\ in King County.
+That effect is the real price gradient of a segregated housing market. The innocuous model has no location, so it
+removes the gradient together with the penalty, and the explanation of the scaffold shows less location effect than
+even an honest model would.
+
+LIME shows this most clearly. Its share kept is \CookLLIMEMatKept, a smaller location effect than the honest model's.
+The rule still classes it as partly fooled, because the coordinates are among the three largest attributions for
+\CookLLIMEMatTop\% of homes, above the 5\% limit. This reflects noise, not the penalty. The innocuous model uses no
+coordinates, so their LIME attributions are sampling noise. In the location design, however, the trigger is the sum
+of two such attributions. Several structural features carry almost no weight in Cook County's innocuous model (LIME
+gives the garage indicator none at all), so the summed noise sometimes outranks them. We keep the pre-specified class
+and report the share kept beside it.
+
+\tabinput{tab_cook}
+
+\subsection{Audit backgrounds the attacker did not train for}\label{sec:local}
+\paragraph{Homes the attacker never saw.} In the main runs the auditor's Shapley background is drawn from training
+homes, which the detector was trained to call real. A detector could in principle pass the auditor's hybrids by
+having memorised those rows. Table~\ref{tab:local} shows that the attack does not rely on this. When each half of the
+explained homes is explained against the other half, homes that were in neither the detector's training rows nor its
+calibration, the share kept is \UnseenKernelSHAPKept\ for KernelSHAP and \UnseenGeoShapleyKept\ for GeoShapley,
+\emph{lower} than with the default background by \UnseenKernelSHAPMinusMain\ and \UnseenGeoShapleyMinusMain\ (paired
+over seeds 0--4; intervals \UnseenKernelSHAPMinusMainLo\ to \UnseenKernelSHAPMinusMainHi\ and
+\UnseenGeoShapleyMinusMainLo\ to \UnseenGeoShapleyMinusMainHi). Fewer of the auditor's queries reach $f$
+(\UnseenKernelSHAPLeak\% and \UnseenGeoShapleyLeak\%, against \MainKernelSHAPLeakLocalTab\% and \MainGeoShapleyLeakLocalTab\%). A
+plausible reading is that the detector scores hybrids built from rows it has seen as slightly more real, so with
+those rows more queries reach $f$ and more of the penalty shows. If so, the main runs slightly favour the auditor.
+
+\paragraph{A geographically local background: harder to fool, but blinder.} Proposition~\ref{prop:floor} predicts that an explainer whose queries keep the dependence between location and the
 protected attribute is harder to fool. We tested one such design, which was not specified in advance: each explained
 home's Shapley background is the 100 training homes nearest to it (Table~\ref{tab:local}). The prediction holds, even
-against an attacker who anticipates it. With the default detector the share kept rises from \FKernelSHAPMatKept\ to
-\LocalFixedKernelSHAPKept\ for KernelSHAP and from \FGeoShapleyMatKept\ to \LocalFixedGeoShapleyKept\ for
+against an attacker who anticipates it. With the default detector the share kept rises from \MainKernelSHAPKeptLocalTab\ to
+\LocalFixedKernelSHAPKept\ for KernelSHAP and from \MainGeoShapleyKeptLocalTab\ to \LocalFixedGeoShapleyKept\ for
 GeoShapley. When the attacker retrains its detector on local-background queries it rises further, to
 \LocalAdaptedKernelSHAPKept\ and \LocalAdaptedGeoShapleyKept\ (paired differences from the default background
 \LocalAdaptedKernelSHAPMinusMain\ and \LocalAdaptedGeoShapleyMinusMain, intervals \LocalAdaptedKernelSHAPMinusMainLo\
@@ -196,7 +261,7 @@ The retrained detector cannot tell local hybrids from real homes, so \LocalAdapt
 The protection has a price, and the price is geographic. A local background compares each home with its neighbours.
 In a segregated city most neighbours of a penalised home are penalised too. So even with no scaffold, the local
 explanation shows a penalty of \LocalFixedKernelSHAPBiasedSigned\ in log$_{10}$ price on penalised homes, against
-\FKernelSHAPBiasedSigned\ with the default background. Under the matched scaffold the local explanation shows
+\MainKernelSHAPBiasedSignedLocalTab\ with the default background (seeds 0--4 throughout this section). Under the matched scaffold the local explanation shows
 \LocalAdaptedKernelSHAPMatSignedLocalTab, less in absolute terms than the default explanation does under attack
 (\MainKernelSHAPMatSignedLocalTab). The spatial clustering that a local background exploits to resist the attack is
 the same clustering that hides a neighbourhood-wide penalty from a local comparison. Geographic awareness moves the
@@ -259,6 +324,42 @@ it is in the top three for \PenTenKernelSHAPBiasedTopPen\% of penalised homes wi
 explainers) and
 \PenTenKernelSHAPTopPen\% (KernelSHAP) and \PenTenGeoShapleyTopPen\% (GeoShapley) under the matched scaffold.
 \tabinput{tab_penalty010}
+
+\paragraph{A continuous penalty.} A threshold at 0.25 is a convenience of the design, not a feature of real
+discrimination. With a penalty that grows with the tract share, $f = h - 0.30\min\{1, T/0.5\}$ (Table~\ref{tab:ramp};
+not pre-specified), the conclusions are unchanged. LIME is fully fooled (share kept \RampLIMEMatKept, trigger in the
+top three for \RampLIMEMatTopPen\% of homes with $T > 0.25$). KernelSHAP and GeoShapley keep \RampKernelSHAPMatKept\
+and \RampGeoShapleyMatKept, slightly more than with the step penalty on the same seeds (\MainKernelSHAPKeptLocalTab\
+and \MainGeoShapleyKeptLocalTab), in line with the logic of Corollary~\ref{cor:penalty} (which covers a step penalty
+only): the average penalty on these homes is smaller, and the cross term does not shrink with it. Because homes just above the threshold carry only part
+of the penalty, their trigger attribution is smaller to begin with (\RampKernelSHAPBiasedSigned\ on average, against
+\MainKernelSHAPBiasedSignedLocalTab\ with the step), and the scaffold pushes it out of the top three more often:
+under attack it stays there for \RampKernelSHAPMatTopPen\% (KernelSHAP) and \RampGeoShapleyMatTopPen\% (GeoShapley)
+of these homes.
+\tabinput{tab_ramp}
+
+\subsection{What a typical audit report would show}\label{sec:audit-report}
+Table~\ref{tab:audit} and Figure~\ref{fig:F10_audit_report} translate the shares into the conclusions of an audit
+(feature design). Served directly, the biased model is caught by every explainer in every seed: the protected attribute
+ranks \AuditKernelSHAPBiasedRank\ on average among the eleven features by mean absolute attribution under both Shapley
+explainers and \AuditLIMEBiasedRank\ under LIME, and the disaggregated check finds a material negative effect on the
+penalised homes in all \AuditKernelSHAPBiasedSeeds\ seeds. Under the matched scaffold the summary check, the global
+importance plot most reports lead with, flags it in \AuditLIMEMatSummaryN\ of \AuditLIMEMatSeeds\ seeds with LIME,
+\AuditKernelSHAPMatSummaryN\ with KernelSHAP and \AuditGeoShapleyMatSummaryN\ with GeoShapley (mean rank
+\AuditLIMEMatRank, \AuditKernelSHAPMatRank\ and \AuditGeoShapleyMatRank). The disaggregated check separates the
+explainers. With LIME the mean attribution on penalised homes is \AuditLIMEMatMeanPen\ in log$_{10}$ price, and the
+check finds a material effect in \AuditLIMEMatMaterialN\ seeds. With KernelSHAP and GeoShapley it still finds one in
+\AuditKernelSHAPMatMaterialN\ and \AuditGeoShapleyMatMaterialN\ seeds, because these explainers keep
+\FKernelSHAPMatKept\ and \FGeoShapleyMatKept\ of the penalty on exactly those homes.
+
+Partial fooling is therefore enough to clear a summary report but not a group-level test, and the group-level test
+needs the auditor to know who is in the protected group. An audit that reads only the global importance plot would pass
+the scaffold with every explainer most of the time; with LIME it would pass it under either check.
+
+\tabinput{tab_audit}
+\figinput{F10_audit_report}{0.95}{What an auditor would see (feature design, seed 0): mean absolute attribution of
+each feature over the 200 explained homes, for the biased model served directly and for the matched scaffold. The
+protected attribute is highlighted.}
 
 \subsection{An outcome-based check sees what the explainers miss}
 No explainer is needed to see this penalty. On the 600 held-out homes, the 8-nearest-neighbour mean of the

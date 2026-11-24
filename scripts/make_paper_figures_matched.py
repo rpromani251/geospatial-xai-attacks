@@ -280,7 +280,7 @@ def f7_mechanism(R, out):
     ax.set_title("Routing by coalition size (feature design)", loc="left", fontsize=9, color=INK)
     ax = axes[1]
     for p in sorted(glob.glob(str(R / "mechanism/predicted_vs_measured_*.csv"))):
-        if "_m-" in p:
+        if "_m-" in p or "/predicted_vs_measured_cook-" in p:
             continue
         key = Path(p).stem.replace("predicted_vs_measured_", "")
         design, e = key.split("_")[:2]

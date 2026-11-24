@@ -1,0 +1,31 @@
+\begin{table}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{lllrrrrrr}
+\toprule
+Design & Explainer & \makecell[b]{Deployed \\ model} & \makecell[b]{Top 3, \\ penalised \\ homes (\%)} & \makecell[b]{Penalty share \\ kept} & \makecell[b]{Fidelity, all \\ homes (\%)} & \makecell[b]{Fidelity, \\ penalised \\ homes (\%)} & \makecell[b]{Queries \\ reaching $f$ \\ (\%)} & Seeds \\
+\midrule
+Cook, feature & LIME & Biased model, no scaffold & 99.4 $\pm$ 1.2 & 1.00 $\pm$ 0.00 & -- & -- & -- & 5 \\
+ &  & Scaffold, matched detector (90\%) & 1.7 $\pm$ 3.5 & 0.02 $\pm$ 0.01 & 100.0 $\pm$ 0.0 & 100.0 $\pm$ 0.0 & 0.0 $\pm$ 0.0 & 5 \\
+ & KernelSHAP & Biased model, no scaffold & 99.0 $\pm$ 0.1 & 1.00 $\pm$ 0.00 & -- & -- & -- & 5 \\
+ &  & Scaffold, matched detector (90\%) & 83.5 $\pm$ 5.0 & 0.65 $\pm$ 0.04 & 90.1 $\pm$ 2.6 & 91.7 $\pm$ 1.2 & 52.7 $\pm$ 3.2 & 5 \\
+ & GeoShapley & Biased model, no scaffold & 99.8 $\pm$ 0.5 & 1.00 $\pm$ 0.00 & -- & -- & -- & 5 \\
+ &  & Scaffold, matched detector (90\%) & 85.1 $\pm$ 5.5 & 0.71 $\pm$ 0.06 & 90.2 $\pm$ 2.8 & 90.6 $\pm$ 2.6 & 61.1 $\pm$ 4.4 & 5 \\
+\midrule
+Cook, location & LIME & Honest model & 94.6 $\pm$ 2.6 & 0.00 $\pm$ 0.00 & -- & -- & -- & 5 \\
+ &  & Biased model, no scaffold & 99.8 $\pm$ 0.5 & 1.00 $\pm$ 0.00 & -- & -- & -- & 5 \\
+ &  & Scaffold, matched detector (90\%) & 9.3 $\pm$ 5.4 & $-$0.76 $\pm$ 0.41 & 100.0 $\pm$ 0.0 & 100.0 $\pm$ 0.0 & 0.0 $\pm$ 0.0 & 5 \\
+ & KernelSHAP & Honest model & 96.3 $\pm$ 3.3 & 0.00 $\pm$ 0.00 & -- & -- & -- & 5 \\
+ &  & Biased model, no scaffold & 98.8 $\pm$ 1.0 & 1.00 $\pm$ 0.00 & -- & -- & -- & 5 \\
+ &  & Scaffold, matched detector (90\%) & 96.4 $\pm$ 2.8 & 0.44 $\pm$ 0.14 & 90.7 $\pm$ 1.8 & 91.3 $\pm$ 2.2 & 58.6 $\pm$ 2.9 & 5 \\
+ & GeoShapley & Honest model & 88.4 $\pm$ 1.7 & 0.00 $\pm$ 0.00 & -- & -- & -- & 5 \\
+ &  & Biased model, no scaffold & 92.0 $\pm$ 6.4 & 1.00 $\pm$ 0.00 & -- & -- & -- & 5 \\
+ &  & Scaffold, matched detector (90\%) & 84.6 $\pm$ 9.6 & 0.36 $\pm$ 0.11 & 90.8 $\pm$ 5.1 & 90.4 $\pm$ 5.0 & 64.6 $\pm$ 3.8 & 5 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\caption{Cook County, Illinois: the same attack on 3,000 single-family sales from 2015 (Cook County Assessor's modeling data) with ACS 2011--2015 tract shares. Same penalty rule (0.30 in log$_{10}$ price above a 0.25 tract share), models, detectors and explainers as in King County; seeds 0--4. In the location design the share kept is net of the honest model. Mean $\pm$ 95\% interval over seeds.}
+\label{tab:cook}
+\end{table}

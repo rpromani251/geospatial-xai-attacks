@@ -1,0 +1,23 @@
+\begin{table}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{llrrrr}
+\toprule
+Explainer & \makecell[b]{Deployed \\ model} & \makecell[b]{Signed \\ attribution, \\ penalised \\ homes} & \makecell[b]{Penalty share \\ kept} & \makecell[b]{Top 3, \\ penalised \\ homes (\%)} & Fidelity (\%) \\
+\midrule
+LIME & Biased model, no scaffold & $-$0.13 $\pm$ 0.00 & 1.00 $\pm$ 0.00 & 97.4 $\pm$ 3.9 & -- \\
+ & Scaffold, matched detector (90\%) & 0.00 $\pm$ 0.00 & 0.03 $\pm$ 0.03 & 0.0 $\pm$ 0.0 & 95.9 $\pm$ 1.3 \\
+\midrule
+KernelSHAP & Biased model, no scaffold & $-$0.12 $\pm$ 0.01 & 1.00 $\pm$ 0.00 & 97.3 $\pm$ 3.9 & -- \\
+ & Scaffold, matched detector (90\%) & $-$0.09 $\pm$ 0.01 & 0.72 $\pm$ 0.11 & 73.3 $\pm$ 10.1 & 89.5 $\pm$ 2.0 \\
+\midrule
+GeoShapley & Biased model, no scaffold & $-$0.12 $\pm$ 0.01 & 1.00 $\pm$ 0.00 & 97.3 $\pm$ 3.9 & -- \\
+ & Scaffold, matched detector (90\%) & $-$0.09 $\pm$ 0.01 & 0.77 $\pm$ 0.11 & 76.8 $\pm$ 11.5 & 89.7 $\pm$ 2.1 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\caption{A continuous penalty, feature design: $f = h - 0.30\,\min(1, T/0.5)$, so the price falls in proportion to the tract share $T$ and by half above 0.5. Shares are averaged over homes with $T > 0.25$, as in the main tables. Seeds 0--4.}
+\label{tab:ramp}
+\end{table}

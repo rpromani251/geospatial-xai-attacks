@@ -6,8 +6,9 @@
 
 \paragraph{Design without coordinates.} Table~\ref{tab:main_nocoord} repeats the feature design with the coordinates
 removed from every model (LIME and KernelSHAP only; GeoShapley needs coordinates). LIME is again fully fooled (share
-kept \NLIMEMatKept). KernelSHAP keeps \NKernelSHAPMatKept, more than with coordinates (\FKernelSHAPMatKept), and
-\NKernelSHAPMatLeak\% of its queries reach $f$ against \FKernelSHAPMatLeak\%. This fits the autocorrelation result (rule C5,
+kept \NLIMEMatKept). KernelSHAP keeps \NKernelSHAPMatKept, more than with coordinates on the same seeds
+(\MainKernelSHAPKeptLocalTab), and \NKernelSHAPMatLeak\% of its queries reach $f$ against
+\MainKernelSHAPLeakLocalTab\%. This fits the autocorrelation result (rule C5,
 Results): without coordinates the detector cannot reject hybrids whose tract share is
 inconsistent with their location. With two fewer players the coalition structure also changes, so the comparison is
 indicative only.
@@ -22,6 +23,8 @@ indicative only.
   \item \texttt{summarize\_matched\_attack.py}: seed-level tables;
   \item \texttt{mechanism\_routing.py}: Section~\ref{sec:mechanism};
   \item \texttt{run\_residual\_diagnostic.py}: the outcome check;
+  \item \texttt{process\_cook\_county.py}: the Cook County sample and its coordinate-to-tract lookup;
+  \item \texttt{audit\_report.py}: the summary and disaggregated audit checks (Section~\ref{sec:audit-report});
   \item \texttt{fidelity\_by\_group.py}: fidelity on penalised and unpenalised explained homes, from the cached
         detectors;
   \item \texttt{make\_paper\_tables.py} and \texttt{make\_paper\_figures\_matched.py}: every table, figure and

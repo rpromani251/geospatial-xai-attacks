@@ -4,13 +4,15 @@ scaffold attack. A home-valuation model for King County, Washington, halves pred
 Black and Latino residents exceed a quarter of the population; a detector trained on each explainer's own queries
 serves an innocuous model to the explainer and the biased model to real homes. LIME then shows \FLIMEMatKept\ of the
 penalty while \FLIMEMatFidPen\% of the penalised homes still pay it. KernelSHAP and GeoShapley show
-\FKernelSHAPMatKept\ and \FGeoShapleyMatKept\ of it at about 90\% fidelity; the trigger drops in their global
-importance ranking but stays prominent on the penalised homes, and the attacker can hide more only by withholding the
-penalty from real homes. GeoShapley's joint location player buys it at most a few points over KernelSHAP, and under
-attack its location effect shrinks while spurious feature-by-location interactions appear. Two propositions explain
-the pattern: an exact split of the share kept, which predicts the result at a smaller penalty to within
-\SplitPredTenMax, and a floor, valid for any detector, set by the dependence between features that an explainer's
-queries break. Geography enters through the data. Segregation helps the attacker, and a local Shapley background that
-resists the attack sees less of a neighbourhood-wide penalty to begin with. The results are the same with random
-forests and neural networks. A residual check that needs no explainer separates the penalised homes from the rest (AUC
-\EsevenAucLagScaffoldTen\ for a 21\% penalty).
+\FKernelSHAPMatKept\ and \FGeoShapleyMatKept\ of it at about 90\% fidelity, and the attacker can hide more only by
+withholding the penalty from real homes. GeoShapley's joint location player buys it at most a few points over
+KernelSHAP, and under attack its location effect shrinks while spurious feature-by-location interactions appear.
+Two propositions explain the pattern: an exact split of the share kept, which predicts the result at a smaller
+penalty to within \SplitPredTenMax, and a floor, valid for any detector, set by the dependence between features that
+an explainer's queries break. Geography enters through the data. Segregation helps the attacker; a local Shapley
+background that resists the attack sees less of a neighbourhood-wide penalty; and in Cook County, Illinois, where
+nearly half of the homes are penalised, even the unhidden explanation shows a smaller penalty, while GeoShapley is the
+easier Shapley explainer to fool when the penalty is a function of location. In an audit report led by global feature
+importance the scaffold removes the protected attribute from the top three in most seeds. The results hold across
+model families, a continuous penalty and reference homes the attacker never saw. A residual check that needs no
+explainer separates the penalised homes from the rest (AUC \EsevenAucLagScaffoldTen\ for a 21\% penalty).

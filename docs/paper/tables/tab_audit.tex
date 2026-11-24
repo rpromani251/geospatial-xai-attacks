@@ -1,0 +1,23 @@
+\begin{table}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{llrrrrr}
+\toprule
+Explainer & \makecell[b]{Deployed \\ model} & \makecell[b]{Trigger rank, \\ mean \\ $|$attribution$|$} & \makecell[b]{Summary check \\ flags} & \makecell[b]{Mean \\ attribution, \\ penalised \\ homes} & \makecell[b]{Disaggregated \\ check flags} & \makecell[b]{Flags with a \\ material size} \\
+\midrule
+LIME & Biased model, no scaffold & 1.4 $\pm$ 0.7 & 5 of 5 & $-$0.24 $\pm$ 0.00 & 5 of 5 & 5 of 5 \\
+ & Scaffold, matched detector (90\%) & 10.0 $\pm$ 0.9 & 0 of 5 & 0.00 $\pm$ 0.00 & 3 of 5 & 0 of 5 \\
+\midrule
+KernelSHAP & Biased model, no scaffold & 2.0 $\pm$ 0.0 & 5 of 5 & $-$0.24 $\pm$ 0.02 & 5 of 5 & 5 of 5 \\
+ & Scaffold, matched detector (90\%) & 3.6 $\pm$ 1.1 & 1 of 5 & $-$0.16 $\pm$ 0.02 & 5 of 5 & 5 of 5 \\
+\midrule
+GeoShapley & Biased model, no scaffold & 2.0 $\pm$ 0.0 & 5 of 5 & $-$0.24 $\pm$ 0.02 & 5 of 5 & 5 of 5 \\
+ & Scaffold, matched detector (90\%) & 2.8 $\pm$ 1.4 & 3 of 5 & $-$0.17 $\pm$ 0.02 & 5 of 5 & 5 of 5 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\caption{What a typical audit would conclude (feature design, King County). \emph{Summary check}: is the protected attribute among the three most important features by mean absolute attribution over the 200 explained homes? \emph{Disaggregated check}: is its mean attribution on homes in tracts above 0.25 negative (one-sided $t$-test over those homes, $p<0.05$); \emph{material}: and at least 0.05 in log$_{10}$ price (an 11\% price effect)? Counts are seeds flagged.}
+\label{tab:audit}
+\end{table}

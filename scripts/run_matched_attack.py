@@ -73,6 +73,10 @@ import pandas as pd
 warnings.filterwarnings("ignore")
 T0 = time.time()
 BASE = ["bathrooms", "sqft_living", "sqft_lot", "grade", "condition", "waterfront", "view", "age"]
+BASE_BY_METRO = {"king": BASE,
+                 "cook": ["bathrooms", "sqft_living", "sqft_lot", "quality", "condition", "garage", "fireplaces", "age"]}
+DATA_BY_METRO = {"king": "seattle_housing_with_demographics.csv", "cook": "cook_county_housing_with_demographics.csv"}
+RAMP_FULL = 0.50       # continuous penalty: delta * min(1, share / RAMP_FULL)
 THRESH = 0.25
 PSI_CFG = dict(n_estimators=300, max_depth=5, learning_rate=0.1)
 H_CFG = dict(n_estimators=500, max_depth=6, learning_rate=0.1)
@@ -106,12 +110,33 @@ def log(*a):
 
 
 # ------------------------------------------------------------------ geography ----
-def tract_raster(root, cache, res=25.0, margin=3000.0):
-    """pct_black_latino of the tract containing each 25 m cell (0 outside every tract)."""
-    f = cache / "tract_raster.npz"
+def tract_raster(root, cache, res=25.0, margin=3000.0, metro="king"):
+    """pct_black_latino of the tract containing each 25 m cell (0 outside every tract). King County: the real tract
+    polygons. Cook County: the tract of the nearest geocoded sale among the assessor's ~376,000 sales (a Voronoi
+    approximation of the polygons; data/processed/cook_county_tract_points.npz)."""
+    f = cache / ("tract_raster.npz" if metro == "king" else f"tract_raster_{metro}.npz")
     if f.exists():
         d = np.load(f)
         return d["grid"], float(d["x0"]), float(d["y0"]), float(d["res"])
+    if metro == "cook":
+        from sklearn.neighbors import KDTree
+        P = np.load(root / "data/processed/cook_county_tract_points.npz")
+        df = pd.read_csv(root / "data/processed" / DATA_BY_METRO[metro])
+        x0, x1 = df.UTM_X.min() - margin, df.UTM_X.max() + margin
+        y0, y1 = df.UTM_Y.min() - margin, df.UTM_Y.max() + margin
+        nx, ny = int(np.ceil((x1 - x0) / res)), int(np.ceil((y1 - y0) / res))
+        tree = KDTree(np.c_[P["UTM_X"], P["UTM_Y"]])
+        grid = np.zeros((ny, nx), np.float32)
+        xs = x0 + (np.arange(nx) + 0.5) * res
+        for j0 in range(0, ny, 200):
+            ys = y0 + (np.arange(j0, min(ny, j0 + 200)) + 0.5) * res
+            XX, YY = np.meshgrid(xs, ys)
+            dist, ind = tree.query(np.c_[XX.ravel(), YY.ravel()], k=1)
+            v = P["share"][ind[:, 0]].astype(np.float32)
+            v[dist[:, 0] > 1000] = 0.0       # more than 1 km from any sale: outside the county's built area
+            grid[j0:j0 + len(ys)] = v.reshape(len(ys), nx)
+        _savez(f, grid=grid, x0=x0, y0=y0, res=res)
+        return grid, float(x0), float(y0), float(res)
     import pyproj
     import shapely
     from shapely.geometry import shape
@@ -166,21 +191,31 @@ class Honest:
 
 
 class Biased:
-    def __init__(self, h, design, feats, penalty, lookup=None):
-        self.h, self.design, self.penalty, self.lookup = h, design, penalty, lookup
+    """f = h - delta * 1{share > 0.25} (step), or h - delta * min(1, share / 0.5) (ramp: continuous in the tract
+    share). penalised() is the share > 0.25 group in both cases; it defines the homes the metrics average over."""
+    def __init__(self, h, design, feats, penalty, lookup=None, shape="step"):
+        self.h, self.design, self.penalty, self.lookup, self.shape = h, design, penalty, lookup, shape
         self.ux = feats.index("UTM_X") if "UTM_X" in feats else None
         self.uy = feats.index("UTM_Y") if "UTM_Y" in feats else None
         self.p = feats.index("pct_black_latino") if design in ("feature", "nocoord") else None
 
-    def penalised(self, X):
+    def share(self, X):
         X = np.asarray(X, float)
         if self.design in ("feature", "nocoord"):
-            return X[:, self.p] > THRESH
-        return self.lookup(X[:, self.ux], X[:, self.uy]) > THRESH
+            return X[:, self.p]
+        return self.lookup(X[:, self.ux], X[:, self.uy])
+
+    def penalised(self, X):
+        return self.share(X) > THRESH
+
+    def amount(self, X):
+        if self.shape == "ramp":
+            return np.clip(self.share(X) / RAMP_FULL, 0.0, 1.0)
+        return self.penalised(X).astype(float)
 
     def predict(self, X):
         X = np.asarray(X, float)
-        return self.h.predict(X) - self.penalty * self.penalised(X)
+        return self.h.predict(X) - self.penalty * self.amount(X)
 
 
 class Deployed:
@@ -415,7 +450,11 @@ def main():
     ap.add_argument("--model", choices=["xgb", "rf", "mlp"], default="xgb",
                     help="model family of h and psi (robustness check)")
     ap.add_argument("--audit-bg", type=int, default=None, help="Shapley background size at audit time")
-    ap.add_argument("--audit-bg-kind", choices=["sample", "kmeans", "local"], default="sample")
+    ap.add_argument("--audit-bg-kind", choices=["sample", "kmeans", "local", "unseen"], default="sample",
+                    help="unseen: the background is the other half of the explained homes, which the attacker never "
+                         "saw (not in detector training, not in threshold calibration)")
+    ap.add_argument("--metro", choices=["king", "cook"], default="king")
+    ap.add_argument("--penalty-shape", choices=["step", "ramp"], default="step")
     ap.add_argument("--attacker-bg-kind", choices=["sample", "local"], default="sample",
                     help="background the attacker uses when harvesting Shapley queries for the matched detector "
                          "(local = the attacker anticipates a geographically local audit background)")
@@ -431,7 +470,8 @@ def main():
     from sklearn.model_selection import train_test_split
     from src.attacks.ood_detector import train_lime_ood_detector, train_shap_ood_detector
 
-    tag = f"{a.design}_seed{a.seed}" + ("" if a.penalty == 0.30 else f"_pen{a.penalty:g}")
+    tag = ("" if a.metro == "king" else f"{a.metro}-") + f"{a.design}_seed{a.seed}" \
+        + ("" if a.penalty == 0.30 else f"_pen{a.penalty:g}") + ("" if a.penalty_shape == "step" else "_ramp")
     tag += ("" if a.attacker == "rf" else f"_att-{a.attacker}") + ("" if a.harvest_scale == 1 else f"_hs{a.harvest_scale}")
     tag += "" if a.shuffle == 1.0 else f"_lam{a.shuffle:g}"
     tag += "" if a.model == "xgb" else f"_m-{a.model}"
@@ -468,7 +508,8 @@ def main():
         return time.time() - T0 + need > a.budget
 
     # ---- data, models (cheap; rebuilt every call)
-    df = pd.read_csv(root / "data/processed/seattle_housing_with_demographics.csv")
+    df = pd.read_csv(root / "data/processed" / DATA_BY_METRO[a.metro])
+    BASE = BASE_BY_METRO[a.metro]
     morans = None
     if a.design == "feature":
         if a.shuffle < 1.0:
@@ -497,8 +538,8 @@ def main():
     psi = Honest(px, [feats.index(c) for c in BASE])
     lookup = None
     if a.design == "location":
-        lookup = TractLookup(*tract_raster(root, cache.parent))
-    f = Biased(h, a.design, feats, a.penalty, lookup)
+        lookup = TractLookup(*tract_raster(root, cache.parent, metro=a.metro))
+    f = Biased(h, a.design, feats, a.penalty, lookup, shape=a.penalty_shape)
     Xe, Xcal = Xte.iloc[:a.n_explain], Xte.iloc[a.n_explain:]
     pen = f.penalised(Xe.values)
     geo_names = [c for c in feats if c not in ("UTM_X", "UTM_Y")] + ["GEO"]
@@ -558,6 +599,7 @@ def main():
         return det.predict_proba(np.asarray(Z, float))[:, list(det.classes_).index(1)]
 
     setup = dict(tag=tag, design=a.design, seed=a.seed, penalty=a.penalty, n_explain=a.n_explain,
+                 metro=a.metro, penalty_shape=a.penalty_shape,
                  bg=a.bg, feats=feats, attacker=a.attacker, harvest_scale=a.harvest_scale,
                  attacker_bg_kind=a.attacker_bg_kind,
                  shuffle=a.shuffle, trigger_morans_I=morans, model=a.model, audit=audit,
@@ -637,9 +679,14 @@ def main():
                     key, d = det_for(e, m)
                     tau = 0.5 if m == "gen" else tau_star[key if m == "mat" else key + m[3:]]
                     dep = Deployed(f, psi, d, tau, skip_first=(e == "lime"))
+                bgk = a.audit_bg_kind
+                if bgk == "unseen":      # the half of the explained homes this chunk is not in
+                    half = a.n_explain // 2
+                    other = Xe.iloc[half:] if s0 < half else Xe.iloc[:half]
+                    bgk = other.sample(n=min(audit_bg, len(other)), random_state=a.seed).values
                 arr = explain(e, dep.predict, Xtr, Xe.iloc[s0:s1], audit_bg, seed=a.seed * 1000 + ci,
                               bg_seed=a.seed, lime_samples=a.audit_lime_samples,
-                              lime_sampler=a.audit_lime_sampler, bg_kind=a.audit_bg_kind, ks_l1=ks_l1)
+                              lime_sampler=a.audit_lime_sampler, bg_kind=bgk, ks_l1=ks_l1)
                 _savez(p, hist=dep.hist, n=dep.n, real=dep.real, secs=time.time() - t,
                          tau=dep.tau if dep.det is not None else np.nan, **arr)
                 log(f"{e:10s} {m:7s} chunk {ci + 1}/{len(chunks)} {time.time() - t:5.1f}s")

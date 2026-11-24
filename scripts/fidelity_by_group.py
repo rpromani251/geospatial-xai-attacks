@@ -33,7 +33,9 @@ def main():
     res = Path(a.results) / "matched_attack"
     sys.path.insert(0, str(ROOT))
     from sklearn.model_selection import train_test_split
-    df0 = pd.read_csv(ROOT / "data/processed/seattle_housing_with_demographics.csv")
+    data = {m: pd.read_csv(ROOT / "data/processed" / f) for m, f in
+            [("king", "seattle_housing_with_demographics.csv"), ("cook", "cook_county_housing_with_demographics.csv")]
+            if (ROOT / "data/processed" / f).exists()}
     old = res / "fidelity_by_group.csv"
     done = pd.read_csv(old) if old.exists() else pd.DataFrame(columns=["tag"])
     rows = [r for r in done.to_dict("records")]
@@ -42,7 +44,7 @@ def main():
         d = json.load(open(p))
         if d.get("audit", "match") != "match" or not d.get("complete") or d["tag"] in have:
             continue
-        df = df0.copy()
+        df = data[d.get("metro", "king")].copy()
         if d["design"] == "feature" and d.get("shuffle", 1.0) < 1.0:       # as in run_matched_attack.py
             srng = np.random.default_rng(d["seed"] + 5000)
             v = df["pct_black_latino"].values.copy()
@@ -79,6 +81,7 @@ def main():
             if abs(r.mean() - want) > 1e-9:
                 sys.exit(f"{d['tag']} {cname}: recomputed fidelity {r.mean():.4f} != stored {want:.4f}")
             rows.append(dict(tag=d["tag"], design=d["design"], seed=d["seed"], model=d.get("model", "xgb"),
+                             metro=d.get("metro", "king"), penalty_shape=d.get("penalty_shape", "step"),
                              penalty=d.get("penalty", 0.3), shuffle=d.get("shuffle", 1.0), explainer=e, deployment=m,
                              tau=c["tau"], fid_all=float(r.mean()), fid_pen=float(r[pen].mean()),
                              fid_unpen=float(r[~pen].mean()), n_pen=int(pen.sum())))

@@ -108,6 +108,8 @@ def summarize(res, *extra):
     sfx = a.get("--design", "feature")
     if a.get("--penalty") not in (None, "0.3", "0.30"):
         sfx += f"_pen{float(a['--penalty']):g}"
+    if a.get("--penalty-shape") not in (None, "step"):
+        sfx += f"_{a['--penalty-shape']}"
     if a.get("--attacker") not in (None, "rf"):
         sfx += f"_att-{a['--attacker']}"
     if a.get("--harvest-scale") not in (None, "1"):
@@ -136,7 +138,8 @@ def runs(res, design, **flt):
                  {"penalty": (flt.get("penalty", 0.30), 0.30), "model": (flt.get("model", "xgb"), "xgb"),
                   "audit": (flt.get("audit", "match"), "match"), "attacker": (flt.get("attacker", "rf"), "rf"),
                   "shuffle": (flt.get("shuffle", 1.0), 1.0), "harvest_scale": (1, 1),
-                  "attacker_bg_kind": (flt.get("attacker_bg_kind", "sample"), "sample")}.items())
+                  "attacker_bg_kind": (flt.get("attacker_bg_kind", "sample"), "sample"),
+                  "penalty_shape": (flt.get("penalty_shape", "step"), "step")}.items())
         if ok:
             out.append(d)
     return out
@@ -147,6 +150,21 @@ def cell(S, e, m, k):
     if r.empty or k not in r:
         return np.nan, np.nan
     return float(r[k].iloc[0]), float(r[k + "_ci"].iloc[0]) if k + "_ci" in r else np.nan
+
+
+def resummarize(P, seeds):
+    """Summary rows in the summarize_matched_attack format, from per-seed rows restricted to `seeds`."""
+    P = P[P.seed.isin(seeds)]
+    out = []
+    for (e, m), g in P.groupby(["explainer", "deployment"]):
+        row = dict(explainer=e, deployment=m, seeds=g.seed.nunique())
+        for k in g.columns:
+            if k in ("explainer", "deployment", "seed") or not np.issubdtype(g[k].dtype, np.number):
+                continue
+            mu, hw, _ = ci(g[k].dropna().values)
+            row[k], row[k + "_ci"] = mu, hw
+        out.append(row)
+    return pd.DataFrame(out)
 
 
 def paired(P, e1, m1, e2, m2, k):
@@ -183,7 +201,11 @@ def main():
 
     # ------------------------------------------------------------------ data and models
     rows = []
-    for design in ["feature", "location"]:
+    DLAB = {"feature": "King, feature", "location": "King, location", "cook-feature": "Cook, feature",
+            "cook-location": "Cook, location"}
+    DTAG = {"feature": "Feature", "location": "Location", "cook-feature": "CookFeature",
+            "cook-location": "CookLocation"}
+    for design in ["feature", "location", "cook-feature", "cook-location"]:
         rr = runs(res, design)
         if not rr:
             continue
@@ -192,18 +214,19 @@ def main():
         sp, sw, _ = ci([d["share_test_penalised"] for d in rr])
         ne, nw, _ = ci([d["n_explained_penalised"] for d in rr])
         mi = rr[0].get("trigger_morans_I")
-        row = [design.capitalize(), str(n), f(hr, hw_), f(pr, pw), f(sp, sw, pct=True), f(ne, nw, d=1)]
-        if design == "location":
+        row = [DLAB[design], str(n), f(hr, hw_), f(pr, pw), f(sp, sw, pct=True), f(ne, nw, d=1)]
+        ck = "Cook" if design.startswith("cook") else ""
+        if design.endswith("location"):
             ra, rw, _ = ci([d.get("raster_agrees_with_csv_tract", np.nan) for d in rr])
             row.append(f(ra, rw, pct=True))
-            macro("RasterAgree", f"{ra * 100:.2f}")      # 1 decimal would print 100.0
-            macro("RasterAgreeLo", max(0.0, ra - rw) if np.isfinite(rw) else np.nan, pct=True)
-            macro("RasterAgreeHi", min(1.0, ra + rw) if np.isfinite(rw) else np.nan, pct=True)
+            macro(f"RasterAgree{ck}", f"{ra * 100:.2f}")      # 1 decimal would print 100.0
+            macro(f"RasterAgree{ck}Lo", max(0.0, ra - rw) if np.isfinite(rw) else np.nan, pct=True)
+            macro(f"RasterAgree{ck}Hi", min(1.0, ra + rw) if np.isfinite(rw) else np.nan, pct=True)
         else:
             row.append("--")
-            macro("TriggerMoran", mi, d=2)
+            macro(f"TriggerMoran{ck}", mi, d=2)
         rows.append(row)
-        tag = design.capitalize()
+        tag = DTAG[design]
         macro_ci(f"HonestRtwo{tag}", hr, hw_)
         macro_ci(f"PsiRtwo{tag}", pr, pw)
         macro_ci(f"SharePen{tag}", sp, sw, pct=True)
@@ -466,7 +489,7 @@ def main():
     for p in sorted(glob.glob(str(R / "mechanism/predicted_vs_measured_*.csv"))):
         C = pd.read_csv(p)
         key = Path(p).stem.replace("predicted_vs_measured_", "")
-        if "_m-" in key:
+        if "_m-" in key or key.startswith("cook-"):
             continue
         shutil.copy(p, D)
         rb = Path(p).parent / f"routing_by_size_{key}.csv"
@@ -560,17 +583,19 @@ def main():
             macro_ci(tg + "RhoBg", *ci(c.rho_bgpen_avg)[:2])
             macro(f"SplitPBg", float(C.p_bg_penalised.mean()), d=2)
             m10 = np.nan
+            p10 = pred10           # the prediction is compared on the seeds that have a delta = 0.10 run
             if P10 is not None:
                 q = P10[(P10.explainer == e) & (P10.deployment == dep)].set_index("seed").penalty_share_kept
                 both = pd.concat([pred10.rename("p"), q.rename("m")], axis=1).dropna()
                 if len(both):
                     errs += list((both.p - both.m).abs())
                     m10 = ci(both.m)[0]
+                    p10 = both.p
                     macro_ci(tg + "MeasTen", *ci(both.m)[:2])
-            macro_ci(tg + "PredTen", *ci(pred10)[:2])
+            macro_ci(tg + "PredTen", *ci(p10)[:2])
             rows.append([ENAME[e] if tn == "taustar" else "", {"taustar": "90\\%", "fid75": "75\\%", "fid50": "50\\%"}[tn],
                          f(*ci(c.measured_share_kept)[:2]), f(*ci(pen_)[:2]), f(*ci(crs_)[:2]),
-                         f(*ci(pred10)[:2]), f(m10)])
+                         f(*ci(p10)[:2]), f(m10)])
         rows.append("MID")
     if rows:
         if errs:
@@ -601,8 +626,12 @@ def main():
         if out[0] is None:
             continue
         Pc, Sc, sfx = out
-        shutil.copy(res / f"per_seed_{sfx}.csv", D)
-        shutil.copy(res / f"summary_{sfx}.csv", D)
+        if nm.startswith("Main"):      # robustness rows ran seeds 0-4; compare the main row on the same seeds
+            Pc = Pc[Pc.seed < 5]
+            Sc = resummarize(Pc, range(5))
+        else:
+            shutil.copy(res / f"per_seed_{sfx}.csv", D)
+            shutil.copy(res / f"summary_{sfx}.csv", D)
         first = True
         for e in EXPL:
             if Sc[(Sc.explainer == e) & (Sc.deployment == "mat")].empty:
@@ -741,13 +770,127 @@ def main():
                 macro_ci(f"PenTen{ENAME[e]}BiasedTopPen", *cell(Sc, e, "biased", "top3_pen"), pct=True)
                 macro_ci(f"PenTen{ENAME[e]}FiftyKept", *cell(Sc, e, "mat50", "penalty_share_kept"))
 
+    # ------------------------------------------------------------------ Cook County (second metro, seeds 0-4)
+    rows, cook_cls = [], []
+    for design, D_ in [("cook-feature", "CookF"), ("cook-location", "CookL")]:
+        out = summarize(res, "--design", design)
+        if out[0] is None:
+            continue
+        Pc, Sc, sfx = out
+        shutil.copy(res / f"per_seed_{sfx}.csv", D)
+        shutil.copy(res / f"summary_{sfx}.csv", D)
+        loc = design.endswith("location")
+        kk = "penalty_share_kept_excess" if loc else "penalty_share_kept"
+        for e in EXPL:
+            first = True
+            for m in (["honest", "biased", "mat"] if loc else ["biased", "mat"]):
+                r = Sc[(Sc.explainer == e) & (Sc.deployment == m)]
+                if r.empty:
+                    continue
+                tg = f"{D_}{ENAME[e]}{MNAME[m]}"
+                vals = {}
+                for k, nm, pct in [(kk, "Kept", False), ("penalty_share_kept", "KeptRaw", False),
+                                   ("top3_pen", "TopPen", True), ("top3", "Top", True), ("fidelity", "Fid", True),
+                                   ("fid_pen", "FidPen", True), ("leak", "Leak", True), ("auc", "Auc", False),
+                                   ("signed_pen", "Signed", False), ("rank_of_mean", "Rank", False)]:
+                    mu, hw = cell(Sc, e, m, k)
+                    vals[k] = (mu, hw)
+                    if np.isfinite(mu):
+                        macro_ci(tg + nm, mu, hw, pct=pct, d=1 if k == "rank_of_mean" else 2)
+                rows.append(["Cook, " + ("location" if loc else "feature") if (e == "lime" and first) else "",
+                             ENAME[e] if first else "", DNAME[m], f(*vals["top3_pen"], pct=True), f(*vals[kk]),
+                             f(*vals["fidelity"], pct=True), f(*vals["fid_pen"], pct=True), f(*vals["leak"], pct=True),
+                             str(int(r.seeds.iloc[0]))])
+                first = False
+            if not Sc[(Sc.explainer == e) & (Sc.deployment == "mat")].empty:
+                kp = cell(Sc, e, "mat", kk)[0]
+                t3 = cell(Sc, e, "mat", "top3")[0]
+                fd = cell(Sc, e, "mat", "fidelity")[0]
+                cls = "fully fooled" if (t3 <= 0.05 and kp <= 0.10 and fd >= 0.90) else "partly fooled"
+                king = next((d["outcome"] for d in decisions if d["rule"] == "C1'"
+                             and d["design"] == design.replace("cook-", "") and d["explainer"] == e), None)
+                cook_cls.append(dict(rule="R-Cook", design=design, explainer=e, estimate=kp, top3=t3, fidelity=fd,
+                                     outcome=("same as King" if cls == king else "DIFFERS from King") + f" ({cls})"))
+                macro(f"RuleCook{D_[-1]}{ENAME[e]}", cls)
+        if {"geoshapley", "kernelshap"} <= set(Pc.explainer):
+            mu, hw, n, pv = paired(Pc, "geoshapley", "mat", "kernelshap", "mat", kk)
+            macro_ci(f"{D_}GeoMinusKsKept", mu, hw, sign=True)
+            mu, hw, n, pv = paired(Pc, "geoshapley", "mat", "kernelshap", "mat", "auc")
+            macro_ci(f"{D_}GeoMinusKsAuc", mu, hw, sign=True)
+        rows.append("MID")
+    decisions += cook_cls
+    if cook_cls:
+        macro("RCookSame", str(sum(c["outcome"].startswith("same") for c in cook_cls)))
+        macro("RCookCells", str(len(cook_cls)))
+        diff = [f"{ENAME[c['explainer']]}, {c['design'].replace('cook-', '')} design ({c['outcome'].split('(')[-1][:-1]})"
+                for c in cook_cls if not c["outcome"].startswith("same")]
+        macro("RCookDiffList", "; ".join(diff) if diff else "none")
+    # biased-model attribution predicted by efficiency for a step penalty: -delta * (1 - share of background penalised)
+    for design, D_ in [("feature", "F"), ("cook-feature", "CookF")]:
+        pth = R / f"mechanism/predicted_vs_measured_{design}_kernelshap.csv"
+        if pth.exists():
+            pb = float(pd.read_csv(pth).p_bg_penalised.mean())
+            macro(f"{D_}ShareBgPen", pb, pct=True)
+            macro(f"{D_}EffPred", -0.30 * (1 - pb))
+            C_ = pd.read_csv(pth)
+            C_ = C_[C_.tau_name == "taustar"]
+            for col, nm in [("kept_penalty_term", "SplitPen"), ("kept_cross_term", "SplitCross"),
+                            ("measured_share_kept", "SplitMeasured")]:
+                macro_ci(f"{D_}{nm}", *ci(C_[col].values)[:2])
+            macro(f"{D_}SplitMaxErr", float(np.abs(C_.predicted_share_kept - C_.measured_share_kept).max()), d=4)
+    if rows:
+        table(T / "tab_cook.tex", ["Design", "Explainer", "Deployed model", "Top 3, penalised homes (\\%)",
+                                   "Penalty share kept", "Fidelity, all homes (\\%)",
+                                   "Fidelity, penalised homes (\\%)", "Queries reaching $f$ (\\%)", "Seeds"],
+              rows[:-1], "Cook County, Illinois: the same attack on 3,000 single-family sales from 2015 (Cook County "
+              "Assessor's modeling data) with ACS 2011--2015 tract shares. Same penalty rule (0.30 in log$_{10}$ "
+              "price above a 0.25 tract share), models, detectors and explainers as in King County; seeds 0--4. "
+              "In the location design the share kept is net of the honest model. Mean $\\pm$ 95\\% interval over "
+              "seeds.", "tab:cook", colspec="lllrrrrrr")
+
+    # ------------------------------------------------------------------ continuous penalty (feature design)
+    out = summarize(res, "--design", "feature", "--penalty-shape", "ramp")
+    if out[0] is not None:
+        Pc, Sc, sfx = out
+        shutil.copy(res / f"per_seed_{sfx}.csv", D)
+        shutil.copy(res / f"summary_{sfx}.csv", D)
+        rows = []
+        for e in EXPL:
+            for m in ["biased", "mat"]:
+                if Sc[(Sc.explainer == e) & (Sc.deployment == m)].empty:
+                    continue
+                kp, kh = cell(Sc, e, m, "penalty_share_kept")
+                t3, th = cell(Sc, e, m, "top3_pen")
+                fid, fh = cell(Sc, e, m, "fidelity")
+                sg, sgh = cell(Sc, e, m, "signed_pen")
+                rows.append([ENAME[e] if m == "biased" else "", DNAME[m], f(sg, sgh), f(kp, kh),
+                             f(t3, th, pct=True), f(fid, fh, pct=True)])
+                tg = f"Ramp{ENAME[e]}{MNAME[m]}"
+                macro_ci(tg + "Kept", kp, kh)
+                macro_ci(tg + "TopPen", t3, th, pct=True)
+                macro_ci(tg + "Signed", sg, sgh)
+            rows.append("MID")
+        table(T / "tab_ramp.tex", ["Explainer", "Deployed model", "Signed attribution, penalised homes",
+                                   "Penalty share kept", "Top 3, penalised homes (\\%)", "Fidelity (\\%)"],
+              rows[:-1], "A continuous penalty, feature design: $f = h - 0.30\\,\\min(1, T/0.5)$, so the price "
+              "falls in proportion to the tract share $T$ and by half above 0.5. Shares are averaged over homes with "
+              "$T > 0.25$, as in the main tables. Seeds 0--4.", "tab:ramp", colspec="llrrrr")
+
     # ------------------------------------------------------------------ local background (theory-motivated, not
     # pre-specified): the auditor draws each home's Shapley background from its 100 nearest training homes
     variants = [("Default background (main)", "main", ()),
+                ("Homes the attacker never saw", "Unseen", ("--audit", "bg100unseen")),
                 ("Local background, detector not retrained", "LocalFixed", ("--audit", "bg100local")),
                 ("Local background, attacker retrains on it", "LocalAdapted",
                  ("--audit", "bg100local", "--attacker-bg-kind", "local"))]
     rows, Pv = [], {}
+
+    def pcell(Pc, e, m, k):        # seeds 0-4 only, so every row compares the same seeds
+        x = Pc[(Pc.explainer == e) & (Pc.deployment == m) & (Pc.seed < 5)]
+        if x.empty or k not in x:
+            return np.nan, np.nan, 0
+        return ci(x[k].values)
+
     for nm, key, ex in variants:
         out = summarize(res, "--design", "feature", *ex)
         if out[0] is None:
@@ -758,19 +901,21 @@ def main():
             shutil.copy(res / f"summary_{sfx}.csv", D)
         Pv[key] = Pc
         for e in ["kernelshap", "geoshapley"]:
-            r = Sc[(Sc.explainer == e) & (Sc.deployment == "mat")]
-            if r.empty or int(r.seeds.iloc[0]) < 3:
+            kp, kh, n = pcell(Pc, e, "mat", "penalty_share_kept")
+            if n < 3:
                 continue
-            kp, kh = cell(Sc, e, "mat", "penalty_share_kept")
-            fid, fh = cell(Sc, e, "mat", "fidelity")
-            fp, fph = cell(Sc, e, "mat", "fid_pen")
-            lk, lkh = cell(Sc, e, "mat", "leak")
-            t3, t3h = cell(Sc, e, "mat", "top3_pen")
-            sg, sgh = cell(Sc, e, "biased", "signed_pen")
-            sm, smh = cell(Sc, e, "mat", "signed_pen")
+            fid, fh, _ = pcell(Pc, e, "mat", "fidelity")
+            fp, fph, _ = pcell(Pc, e, "mat", "fid_pen")
+            lk, lkh, _ = pcell(Pc, e, "mat", "leak")
+            sg, sgh, _ = pcell(Pc, e, "biased", "signed_pen")
+            sm, smh, _ = pcell(Pc, e, "mat", "signed_pen")
             rows.append([nm if e == "kernelshap" else "", ENAME[e], f(sg, sgh), f(sm, smh), f(kp, kh),
-                         f(fid, fh, pct=True), f(lk, lkh, pct=True), str(int(r.seeds.iloc[0]))])
-            macro_ci(f"{'Main' if key == 'main' else key}{ENAME[e]}MatSignedLocalTab", sm, smh)
+                         f(fid, fh, pct=True), f(lk, lkh, pct=True), str(n)])
+            pre = "Main" if key == "main" else key
+            macro_ci(f"{pre}{ENAME[e]}MatSignedLocalTab", sm, smh)
+            macro_ci(f"{pre}{ENAME[e]}BiasedSignedLocalTab", sg, sgh)
+            macro_ci(f"{pre}{ENAME[e]}KeptLocalTab", kp, kh)
+            macro_ci(f"{pre}{ENAME[e]}LeakLocalTab", lk, lkh, pct=True)
             if key != "main":
                 macro_ci(f"{key}{ENAME[e]}Kept", kp, kh)
                 macro_ci(f"{key}{ENAME[e]}Leak", lk, lkh, pct=True)
@@ -787,13 +932,51 @@ def main():
         table(T / "tab_local.tex", ["Audit background", "Explainer", "Signed attribution, biased model",
                                     "Signed attribution, matched scaffold", "Penalty share kept",
                                     "Fidelity, all homes (\\%)", "Queries reaching $f$ (\\%)", "Seeds"],
-              rows[:-1], "A geographically local audit background (feature design, matched scaffold): each "
-              "explained home's Shapley background is the 100 training homes nearest to it. Not pre-specified; "
-              "motivated by Proposition~\\ref{prop:floor}. In the second row the detector is the default one; in "
-              "the third the attacker harvests its training queries with local backgrounds too. Share kept is "
-              "relative to the biased model explained with the same background; the signed attributions (log$_{10}$ price, "
-              "penalised homes) show how much penalty each explanation shows in absolute terms. Mean $\\pm$ 95\\% "
-              "interval over seeds.", "tab:local", colspec="llrrrrrr")
+              rows[:-1], "Audit backgrounds the attacker did not train for (feature design, matched scaffold, seeds "
+              "0--4). \\emph{Never saw}: the Shapley background is the other half of the 200 explained homes, which "
+              "were in neither the detector's training rows nor the threshold calibration. \\emph{Local}: each "
+              "explained home's background is the 100 training homes nearest to it, with the default detector or "
+              "with one the attacker retrains on local-background queries. Neither was pre-specified; the local test "
+              "is motivated by Proposition~\\ref{prop:floor}. Share kept is relative to the biased model explained "
+              "with the same background; the signed attributions (log$_{10}$ price, penalised homes) show how much "
+              "penalty each explanation shows in absolute terms. Mean $\\pm$ 95\\% interval over seeds.",
+              "tab:local", colspec="llrrrrrr")
+
+    # ------------------------------------------------------------------ a typical audit report (scripts/audit_report.py)
+    ar = R / "audit_report/audit_checks.csv"
+    if ar.exists():
+        A = pd.read_csv(ar)
+        shutil.copy(ar, D)
+        rows = []
+        for e in EXPL:
+            for m in ["biased", "mat"]:
+                x = A[(A.explainer == e) & (A.deployment == m)]
+                if x.empty:
+                    continue
+                n = len(x)
+                rk, rh, _ = ci(x.rank_mean_abs.values)
+                mp, mh, _ = ci(x.mean_pen.values)
+                tg = f"Audit{ENAME[e]}{MNAME[m]}"
+                macro(tg + "SummaryN", str(int(x.summary_flag.sum())))
+                macro(tg + "PassN", str(int((~x.summary_flag.astype(bool)).sum())))
+                macro(tg + "DisaggN", str(int(x.disagg_flag.sum())))
+                macro(tg + "MaterialN", str(int(x.disagg_material_flag.sum())))
+                macro(tg + "Seeds", str(n))
+                macro_ci(tg + "Rank", rk, rh, d=1)
+                macro_ci(tg + "MeanPen", mp, mh)
+                rows.append([ENAME[e] if m == "biased" else "", DNAME[m], f(rk, rh, d=1),
+                             f"{int(x.summary_flag.sum())} of {n}", f(mp, mh),
+                             f"{int(x.disagg_flag.sum())} of {n}", f"{int(x.disagg_material_flag.sum())} of {n}"])
+            rows.append("MID")
+        table(T / "tab_audit.tex", ["Explainer", "Deployed model", "Trigger rank, mean $|$attribution$|$",
+                                    "Summary check flags", "Mean attribution, penalised homes",
+                                    "Disaggregated check flags", "Flags with a material size"], rows[:-1],
+              "What a typical audit would conclude (feature design, King County). \\emph{Summary check}: is the "
+              "protected attribute among the three most important features by mean absolute attribution over the "
+              "200 explained homes? \\emph{Disaggregated check}: is its mean attribution on homes in tracts above "
+              "0.25 negative (one-sided $t$-test over those homes, $p<0.05$); \\emph{material}: and at least 0.05 in "
+              "log$_{10}$ price (an 11\\% price effect)? Counts are seeds flagged.", "tab:audit",
+              colspec="llrrrrr")
 
     # ------------------------------------------------------------------ E7 outcome diagnostic
     e7 = R / "residual_diagnostic/summary.csv"

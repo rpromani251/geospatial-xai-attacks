@@ -9,10 +9,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DEVIATIONS = """Deviations from the agent plan
-- Main results use seeds 0-4. The plan queued seeds 5-9 as well (q_main_late); they were dropped for time after a
-  container restart cost about four hours, so every attack table uses the same five seeds. To add them later run the
-  q_main_late jobs, then scripts/mechanism_routing.py for the three design/explainer pairs, make_paper_tables.py,
-  make_paper_figures_matched.py and pdflatex; every number in the draft updates.
+- Main results use seeds 0-9. The plan queued seeds 5-9 (q_main_late); they were first dropped for time after a
+  container restart and then run on 23 November. Robustness, Cook County, continuous-penalty and background tables
+  use seeds 0-4, and the local/unseen table compares every row on seeds 0-4.
 - Attacker strength (q_attacker: forest with leaf size 5, XGBoost detector, 4x harvested queries) was optional in the
   plan and was not run; the draft states this as a limitation.
 - Run order: robustness and extra runs ran before main seeds 5-9 (the plan put all main seeds first).
@@ -35,7 +34,11 @@ def main():
     out = ["Jobs queued for draft v1 (scripts/run_matched_attack.py arguments), with status", ""]
     names = {"q_main.txt": "main (seeds 0-4)", "q_robust.txt": "robustness: audit settings and model families",
              "q_extra.txt": "extra: autocorrelation (C5), penalty 0.10, no-coordinate design",
-             "q_main_late.txt": "main seeds 5-9 (dropped for time)",
+             "q_local.txt": "local Shapley background, fixed and adapted attacker (22 Nov, not pre-specified)",
+             "q_unseen.txt": "background of homes the attacker never saw (23 Nov, not pre-specified)",
+             "q_cook.txt": "Cook County, Illinois: feature and location designs (23 Nov)",
+             "q_ramp.txt": "continuous penalty, feature design (23 Nov, not pre-specified)",
+             "q_main_late.txt": "main seeds 5-9 (run 23 Nov)",
              "q_attacker.txt": "attacker strength (optional, not run)"}
     for q, title in names.items():
         p = rd / q
@@ -47,8 +50,9 @@ def main():
         out += [f"  [{'x' if j in done else ' '}] {j}" for j in jobs]
         out.append("")
     out.append("Outcome check: scripts/run_residual_diagnostic.py --seeds 10 (completed; results/residual_diagnostic/)")
-    out.append("Mechanism: scripts/mechanism_routing.py --seeds 0-4 for feature/kernelshap, feature/geoshapley, "
-               "location/geoshapley (completed; results/mechanism/)")
+    out.append("Mechanism: scripts/mechanism_routing.py --seeds 0-9 for feature/kernelshap, feature/geoshapley, "
+               "location/geoshapley, and --metro cook --seeds 0-4 for feature/kernelshap (results/mechanism/)")
+    out.append("Audit report: scripts/audit_report.py (results/audit_report/)")
     out.append("")
     out.append(DEVIATIONS)
     dst = ROOT / "docs/paper/data/queues_run.txt"
