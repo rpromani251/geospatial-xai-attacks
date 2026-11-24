@@ -1,0 +1,5 @@
+--design feature --seed 0 --penalty-shape ramp --skip-honest-shapley
+--design feature --seed 1 --penalty-shape ramp --skip-honest-shapley
+--design feature --seed 2 --penalty-shape ramp --skip-honest-shapley
+--design feature --seed 3 --penalty-shape ramp --skip-honest-shapley
+--design feature --seed 4 --penalty-shape ramp --skip-honest-shapley

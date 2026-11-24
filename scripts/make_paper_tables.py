@@ -770,6 +770,30 @@ def main():
                 macro_ci(f"PenTen{ENAME[e]}BiasedTopPen", *cell(Sc, e, "biased", "top3_pen"), pct=True)
                 macro_ci(f"PenTen{ENAME[e]}FiftyKept", *cell(Sc, e, "mat50", "penalty_share_kept"))
 
+    # ------------------------------------------------------------------ King County on seeds 0-4, for like-with-like
+    # comparisons with the tables that ran five seeds (Cook County, continuous penalty, backgrounds)
+    for design, D_ in [("feature", "F"), ("location", "L")]:
+        out = summarize(res, "--design", design)
+        if out[0] is None:
+            continue
+        S5 = resummarize(out[0], range(5))
+        for e in EXPL:
+            for m in ["honest", "biased", "mat"]:
+                for k, nm, pct in [("penalty_share_kept_excess" if design == "location" else "penalty_share_kept",
+                                    "Kept", False), ("penalty_share_kept", "KeptRaw", False),
+                                   ("top3_pen", "TopPen", True), ("signed_pen", "Signed", False)]:
+                    mu, hw = cell(S5, e, m, k)
+                    if np.isfinite(mu):
+                        macro_ci(f"{D_}{ENAME[e]}{MNAME[m]}{nm}Five", mu, hw, pct=pct)
+    pth = R / "mechanism/predicted_vs_measured_feature_kernelshap.csv"
+    if pth.exists():
+        C_ = pd.read_csv(pth)
+        C_ = C_[(C_.tau_name == "taustar") & (C_.seed < 5)]
+        macro_ci("FSplitPenFive", *ci(C_.kept_penalty_term.values)[:2])
+        macro_ci("FSplitCrossFive", *ci(C_.kept_cross_term.values)[:2])
+        macro("FShareBgPenFive", float(C_.p_bg_penalised.mean()), pct=True)
+        macro("FEffPredFive", -0.30 * (1 - float(C_.p_bg_penalised.mean())))
+
     # ------------------------------------------------------------------ Cook County (second metro, seeds 0-4)
     rows, cook_cls = [], []
     for design, D_ in [("cook-feature", "CookF"), ("cook-location", "CookL")]:

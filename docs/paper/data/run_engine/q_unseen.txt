@@ -1,0 +1,5 @@
+--design feature --seed 0 --audit-bg-kind unseen
+--design feature --seed 1 --audit-bg-kind unseen
+--design feature --seed 2 --audit-bg-kind unseen
+--design feature --seed 3 --audit-bg-kind unseen
+--design feature --seed 4 --audit-bg-kind unseen

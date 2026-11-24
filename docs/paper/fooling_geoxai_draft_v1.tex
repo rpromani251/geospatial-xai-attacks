@@ -386,7 +386,9 @@ serves almost every real home with $f$.
 
 \subsection{Statistics and pre-specified decision rules}
 The seed is the unit of replication; a seed re-runs the split, the models, the detectors, the background draw and the
-LIME sampling. Each metric is a mean over seeds with a 95\% interval $\bar x \pm t_{S-1}^{-1}(0.975)\,\hat\sigma/\sqrt S$;
+LIME sampling. The main King County results use ten seeds (0--9); the robustness configurations, Cook County, the
+continuous penalty and the alternative backgrounds use seeds 0--4, and wherever they are compared with the main results
+the comparison uses the same five seeds. Each metric is a mean over seeds with a 95\% interval $\bar x \pm t_{S-1}^{-1}(0.975)\,\hat\sigma/\sqrt S$;
 contrasts are paired by seed. The rules below were fixed before the runs.
 \begin{itemize}
   \item \textbf{C1 (fooled)}: $1 - K$ under the matched scaffold has an interval above 0, Holm-corrected over the three

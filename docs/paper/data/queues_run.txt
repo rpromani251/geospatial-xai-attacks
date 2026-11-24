@@ -71,17 +71,55 @@ Jobs queued for draft v1 (scripts/run_matched_attack.py arguments), with status
   [x] --design nocoord --seed 3
   [x] --design nocoord --seed 4
 
-## q_main_late.txt: main seeds 5-9 (dropped for time) -- 0/10 completed
-  [ ] --design feature --seed 5 --skip-honest-shapley --frontier
-  [ ] --design location --seed 5 --frontier
-  [ ] --design feature --seed 6 --skip-honest-shapley --frontier
-  [ ] --design location --seed 6 --frontier
-  [ ] --design feature --seed 7 --skip-honest-shapley --frontier
-  [ ] --design location --seed 7 --frontier
-  [ ] --design feature --seed 8 --skip-honest-shapley --frontier
-  [ ] --design location --seed 8 --frontier
-  [ ] --design feature --seed 9 --skip-honest-shapley --frontier
-  [ ] --design location --seed 9 --frontier
+## q_local.txt: local Shapley background, fixed and adapted attacker (22 Nov, not pre-specified) -- 10/10 completed
+  [x] --design feature --seed 0 --audit-bg-kind local
+  [x] --design feature --seed 1 --audit-bg-kind local
+  [x] --design feature --seed 2 --audit-bg-kind local
+  [x] --design feature --seed 3 --audit-bg-kind local
+  [x] --design feature --seed 4 --audit-bg-kind local
+  [x] --design feature --seed 0 --attacker-bg-kind local --audit-bg-kind local
+  [x] --design feature --seed 1 --attacker-bg-kind local --audit-bg-kind local
+  [x] --design feature --seed 2 --attacker-bg-kind local --audit-bg-kind local
+  [x] --design feature --seed 3 --attacker-bg-kind local --audit-bg-kind local
+  [x] --design feature --seed 4 --attacker-bg-kind local --audit-bg-kind local
+
+## q_unseen.txt: background of homes the attacker never saw (23 Nov, not pre-specified) -- 5/5 completed
+  [x] --design feature --seed 0 --audit-bg-kind unseen
+  [x] --design feature --seed 1 --audit-bg-kind unseen
+  [x] --design feature --seed 2 --audit-bg-kind unseen
+  [x] --design feature --seed 3 --audit-bg-kind unseen
+  [x] --design feature --seed 4 --audit-bg-kind unseen
+
+## q_cook.txt: Cook County, Illinois: feature and location designs (23 Nov) -- 10/10 completed
+  [x] --metro cook --design feature --seed 0 --skip-honest-shapley
+  [x] --metro cook --design location --seed 0
+  [x] --metro cook --design feature --seed 1 --skip-honest-shapley
+  [x] --metro cook --design location --seed 1
+  [x] --metro cook --design feature --seed 2 --skip-honest-shapley
+  [x] --metro cook --design location --seed 2
+  [x] --metro cook --design feature --seed 3 --skip-honest-shapley
+  [x] --metro cook --design location --seed 3
+  [x] --metro cook --design feature --seed 4 --skip-honest-shapley
+  [x] --metro cook --design location --seed 4
+
+## q_ramp.txt: continuous penalty, feature design (23 Nov, not pre-specified) -- 5/5 completed
+  [x] --design feature --seed 0 --penalty-shape ramp --skip-honest-shapley
+  [x] --design feature --seed 1 --penalty-shape ramp --skip-honest-shapley
+  [x] --design feature --seed 2 --penalty-shape ramp --skip-honest-shapley
+  [x] --design feature --seed 3 --penalty-shape ramp --skip-honest-shapley
+  [x] --design feature --seed 4 --penalty-shape ramp --skip-honest-shapley
+
+## q_main_late.txt: main seeds 5-9 (run 23 Nov) -- 10/10 completed
+  [x] --design feature --seed 5 --skip-honest-shapley --frontier
+  [x] --design location --seed 5 --frontier
+  [x] --design feature --seed 6 --skip-honest-shapley --frontier
+  [x] --design location --seed 6 --frontier
+  [x] --design feature --seed 7 --skip-honest-shapley --frontier
+  [x] --design location --seed 7 --frontier
+  [x] --design feature --seed 8 --skip-honest-shapley --frontier
+  [x] --design location --seed 8 --frontier
+  [x] --design feature --seed 9 --skip-honest-shapley --frontier
+  [x] --design location --seed 9 --frontier
 
 ## q_attacker.txt: attacker strength (optional, not run) -- 0/15 completed
   [ ] --design feature --seed 0 --skip-honest-shapley --attacker rf_leaf5
@@ -100,26 +138,14 @@ Jobs queued for draft v1 (scripts/run_matched_attack.py arguments), with status
   [ ] --design feature --seed 3 --skip-honest-shapley --harvest-scale 4
   [ ] --design feature --seed 4 --skip-honest-shapley --harvest-scale 4
 
-## q_local.txt: local Shapley background (added 22 Nov, not pre-specified) -- 10/10 completed
-  [x] --design feature --seed 0 --audit-bg-kind local
-  [x] --design feature --seed 1 --audit-bg-kind local
-  [x] --design feature --seed 2 --audit-bg-kind local
-  [x] --design feature --seed 3 --audit-bg-kind local
-  [x] --design feature --seed 4 --audit-bg-kind local
-  [x] --design feature --seed 0 --attacker-bg-kind local --audit-bg-kind local
-  [x] --design feature --seed 1 --attacker-bg-kind local --audit-bg-kind local
-  [x] --design feature --seed 2 --attacker-bg-kind local --audit-bg-kind local
-  [x] --design feature --seed 3 --attacker-bg-kind local --audit-bg-kind local
-  [x] --design feature --seed 4 --attacker-bg-kind local --audit-bg-kind local
-
 Outcome check: scripts/run_residual_diagnostic.py --seeds 10 (completed; results/residual_diagnostic/)
-Mechanism: scripts/mechanism_routing.py --seeds 0-4 for feature/kernelshap, feature/geoshapley, location/geoshapley (completed; results/mechanism/)
+Mechanism: scripts/mechanism_routing.py --seeds 0-9 for feature/kernelshap, feature/geoshapley, location/geoshapley, and --metro cook --seeds 0-4 for feature/kernelshap (results/mechanism/)
+Audit report: scripts/audit_report.py (results/audit_report/)
 
 Deviations from the agent plan
-- Main results use seeds 0-4. The plan queued seeds 5-9 as well (q_main_late); they were dropped for time after a
-  container restart cost about four hours, so every attack table uses the same five seeds. To add them later run the
-  q_main_late jobs, then scripts/mechanism_routing.py for the three design/explainer pairs, make_paper_tables.py,
-  make_paper_figures_matched.py and pdflatex; every number in the draft updates.
+- Main results use seeds 0-9. The plan queued seeds 5-9 (q_main_late); they were first dropped for time after a
+  container restart and then run on 23 November. Robustness, Cook County, continuous-penalty and background tables
+  use seeds 0-4, and the local/unseen table compares every row on seeds 0-4.
 - Attacker strength (q_attacker: forest with leaf size 5, XGBoost detector, 4x harvested queries) was optional in the
   plan and was not run; the draft states this as a limitation.
 - Run order: robustness and extra runs ran before main seeds 5-9 (the plan put all main seeds first).

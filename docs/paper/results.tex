@@ -169,7 +169,8 @@ kept at the 90\% threshold into a penalty term of \SplitKernelSHAPNinetyPen\ and
 (\SplitKernelSHAPNinetyRhoBg). By Corollary~\ref{cor:penalty} the split measured at $\delta = 0.30$ predicts the share
 kept at $\delta = 0.10$: \SplitKernelSHAPNinetyPredTen\ for KernelSHAP and \SplitGeoShapleyNinetyPredTen\ for
 GeoShapley, against \SplitKernelSHAPNinetyMeasTen\ and \SplitGeoShapleyNinetyMeasTen\ measured in the separate
-$\delta = 0.10$ runs. Across both explainers, all three thresholds and five seeds, the mean absolute error is
+$\delta = 0.10$ runs. Across both explainers, all three thresholds and the five seeds that have a $\delta = 0.10$ run, the mean absolute
+error is
 \SplitPredTenMAE\ (largest \SplitPredTenMax). This is the out-of-sample test of the mechanism that rule M is not.
 
 \tabinput{tab_split}
@@ -191,34 +192,35 @@ King County; the exception is LIME in the location design, discussed below.
 \paragraph{Feature design.} LIME is fully fooled again. It keeps \CookFLIMEMatKept\ of the penalty and ranks the
 trigger in the top three for \CookFLIMEMatTopPen\% of the penalised homes, while \CookFLIMEMatFidPen\% of those homes
 are charged the penalty. KernelSHAP and GeoShapley keep \CookFKernelSHAPMatKept\ and \CookFGeoShapleyMatKept\ of the
-penalty at 90\% fidelity, close to their King County shares (\FKernelSHAPMatKept\ and \FGeoShapleyMatKept).
+penalty at 90\% fidelity, close to their King County shares on the same seeds (\FKernelSHAPMatKeptFive\ and
+\FGeoShapleyMatKeptFive).
 GeoShapley again keeps slightly more (paired difference \CookFGeoMinusKsKept, interval \CookFGeoMinusKsKeptLo\ to
 \CookFGeoMinusKsKeptHi).
 
 What changes is how much penalty there is to keep. The penalty is the same 0.30, but served directly the biased
 model's trigger attribution on penalised homes is \CookFKernelSHAPBiasedSigned\ in log$_{10}$ price, against
-\FKernelSHAPBiasedSigned\ in King County. Efficiency explains why. A Shapley value compares a home with the
+\FKernelSHAPBiasedSignedFive\ in King County. Efficiency explains why. A Shapley value compares a home with the
 background, and in Cook County about half of the background homes are penalised too (\CookFShareBgPen\%). The penalty
 term of the attribution is then $-\delta(1 - p_B)$, about \CookFEffPred\ (Proposition~\ref{prop:split}; King County
-\FEffPred). The exact split holds here too. Under the matched scaffold KernelSHAP's share kept divides into a
-penalty term of \CookFSplitPen\ and a cross term of \CookFSplitCross\ (King County \FSplitPen\ and \FSplitCross), so
+\FEffPredFive). The exact split holds here too. Under the matched scaffold KernelSHAP's share kept divides into a
+penalty term of \CookFSplitPen\ and a cross term of \CookFSplitCross\ (King County \FSplitPenFive\ and \FSplitCrossFive), so
 the term $(r_{S\cup j} - r_S)(h - \psi)$ carries more of what is kept in the city where the innocuous model is a
 poorer stand-in for the honest one. Because the trigger starts smaller, the scaffold pushes it down further. Under the matched scaffold it is in the top three for
 \CookFKernelSHAPMatTopPen\% (KernelSHAP) and \CookFGeoShapleyMatTopPen\% (GeoShapley) of the penalised homes, against
-\FKernelSHAPMatTopPen\% and \FGeoShapleyMatTopPen\% in King County. In the city where more people pay the penalty,
+\FKernelSHAPMatTopPenFive\% and \FGeoShapleyMatTopPenFive\% in King County. In the city where more people pay the penalty,
 the explanation shows each of them a smaller one.
 
 \paragraph{Location design.} Here the two cities differ. Net of the honest model, KernelSHAP keeps
-\CookLKernelSHAPMatKept\ of the penalty and GeoShapley \CookLGeoShapleyMatKept, against \LKernelSHAPMatKept\ and
-\LGeoShapleyMatKept\ in King County. GeoShapley now keeps \emph{less} than KernelSHAP (paired difference
+\CookLKernelSHAPMatKept\ of the penalty and GeoShapley \CookLGeoShapleyMatKept, against \LKernelSHAPMatKeptFive\ and
+\LGeoShapleyMatKeptFive\ in King County on the same seeds. GeoShapley now keeps \emph{less} than KernelSHAP (paired difference
 \CookLGeoMinusKsKept, interval \CookLGeoMinusKsKeptLo\ to \CookLGeoMinusKsKeptHi). In the case it was designed for,
 and in the more segregated city, treating location as one player makes GeoShapley the easier Shapley explainer to
 fool.
 
 The raw shares, before netting out the honest model, are close to King County's (\CookLKernelSHAPMatKeptRaw\ and
-\CookLGeoShapleyMatKeptRaw, against \LKernelSHAPMatKeptRaw\ and \LGeoShapleyMatKeptRaw). The net shares are lower
+\CookLGeoShapleyMatKeptRaw, against \LKernelSHAPMatKeptRawFive\ and \LGeoShapleyMatKeptRawFive). The net shares are lower
 because in Cook County the honest model already gives penalised homes a larger negative location effect:
-\CookLKernelSHAPHonestKeptRaw\ of the biased model's attribution, against \LKernelSHAPHonestKeptRaw\ in King County.
+\CookLKernelSHAPHonestKeptRaw\ of the biased model's attribution, against \LKernelSHAPHonestKeptRawFive\ in King County.
 That effect is the real price gradient of a segregated housing market. The innocuous model has no location, so it
 removes the gradient together with the penalty, and the explanation of the scaffold shows less location effect than
 even an honest model would.
@@ -354,7 +356,9 @@ check finds a material effect in \AuditLIMEMatMaterialN\ seeds. With KernelSHAP 
 
 Partial fooling is therefore enough to clear a summary report but not a group-level test, and the group-level test
 needs the auditor to know who is in the protected group. An audit that reads only the global importance plot would pass
-the scaffold with every explainer most of the time; with LIME it would pass it under either check.
+the scaffold in every seed with LIME, in most with KernelSHAP and in some with GeoShapley. With LIME it would pass it
+under either check: the group-level test is significant in \AuditLIMEMatDisaggN\ seeds, but for an effect too small to
+act on.
 
 \tabinput{tab_audit}
 \figinput{F10_audit_report}{0.95}{What an auditor would see (feature design, seed 0): mean absolute attribution of

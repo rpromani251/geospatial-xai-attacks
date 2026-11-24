@@ -1,61 +1,53 @@
 Hi Peng,
 
-Attached is draft v1 of the geography paper, working title **"Geographic awareness is no defence: scaffold attacks
-hide a racial price penalty from LIME, KernelSHAP and GeoShapley."** All results are from King County. Every number is
-generated from the result files, and an independent recomputation of the printed numbers and the pre-specified rule
-outcomes agrees with the PDF.
+Attached is the current draft of the geography paper, **"Geographic awareness is no defence: scaffold attacks hide a
+racial price penalty from LIME, KernelSHAP and GeoShapley."** Since the last version it covers two cities, ten seeds
+for the main King County results, and what a typical audit report would conclude. Every number in the PDF is generated
+from the result files, and an independent recomputation of 952 printed numbers and rule outcomes agrees with it.
+
+A longer project record (all results with numbers, a dated account of everything tried since the start of the
+project, corrected claims, and the decisions I need from you) is in the shared doc.
 
 **Main findings**
 
-- **All three explainers are fooled, LIME completely.**
-  - A scaffold with a detector trained on each explainer's own queries hides a penalty that halves predicted prices
-    in tracts where Black and Latino residents exceed a quarter of the population.
-  - LIME shows 2% of the penalty while 97% of penalised homes still pay it.
-  - KernelSHAP and GeoShapley show 67% and 72% of it, while 86–88% of penalised homes still pay.
-- **What is hidden from the Shapley explainers is limited.** The scaffold hides the size of the penalty and its
-  global importance rank. On the penalised homes the trigger stays among the top three attributions. Hiding more
-  costs the attacker bias delivered.
-- **Geographic awareness buys little.** GeoShapley keeps about 5 points more of the penalty than KernelSHAP in the
-  feature design, and nothing detectable in the location design. Under attack its GEO effect shrinks and its
-  feature-by-location interactions roughly double.
-- **Two propositions explain why** (Section 4.6, proofs in Appendix E).
-  - *An exact split* of the share kept into a penalty term and a cross term. Measured at one penalty, it predicts the
-    result at a smaller penalty in separate runs, with a mean per-seed error under 0.01.
-  - *A routing floor* that holds for any detector: an explainer's truthful queries are bounded below by fidelity
-    minus the statistical dependence its query construction breaks. This one quantity orders LIME, KernelSHAP and
-    GeoShapley.
-- **Geography enters through the data.** The more segregated the protected attribute, the more the scaffold hides.
-  Lowering the trigger's Moran's I from 0.83 to about 0 raises KernelSHAP's share kept from 0.67 to 0.75.
-- **Robustness.** The results are the same for random forests and neural nets, because the detector never sees the
-  model, and when the auditor changes the Shapley background. Switching LIME to its Gaussian sampler recovers part of
-  the penalty.
-- **An outcome check needs no explainer.** The local mean of residuals separates penalised homes with an AUC of 0.81
-  at a 21% penalty. That only narrowly clears our pre-set 0.80 bar.
-
-**Corrections to earlier reports** (Appendix D)
-
-- The 0.30 log-price penalty halves the price; it is not 26% (prices are log10).
-- "LIME resists in a geographic setting" came from a detector that did not match LIME's sampler.
-- The "93% GeoShapley collapse" is withdrawn.
+- **All three explainers are fooled, LIME completely.** A scaffold with a detector trained on each explainer's own
+  queries hides a penalty that halves predicted prices in tracts where Black and Latino residents exceed a quarter of
+  the population. LIME shows 0.01 of the penalty while 97.8% of penalised homes still pay it.
+  KernelSHAP and GeoShapley show 0.70 and 0.74 of it while
+  89–90% of penalised homes still pay.
+- **It replicates in Cook County, Illinois** (5 of 6 explainer–design classes the same; the
+  exception is a noise artefact explained in the paper). There nearly half the homes are penalised, so even the
+  unhidden explanation shows a smaller penalty (−0.15 against −0.24 in
+  log10 price for the same penalty): a Shapley value compares a home with a reference population that is itself
+  penalised.
+- **Geographic awareness buys little, and can cost.** GeoShapley keeps about 4 points more than KernelSHAP in King
+  County's feature design, nothing detectable in its location design, and **less** than KernelSHAP in Cook County's
+  location design (−0.08).
+- **Two propositions explain why** (Section 4.6, proofs in Appendix E): an exact split of the share kept, which
+  predicts the result at a smaller penalty to within 0.009, and a routing floor, valid for any detector,
+  set by the dependence between features that an explainer's queries break.
+- **What an audit would conclude.** Under the scaffold, the global importance plot misses the protected attribute in
+  all 10 seeds with LIME, 7 with KernelSHAP and
+  4 with GeoShapley. A test restricted to the penalised homes still catches it with the Shapley
+  explainers but not with LIME.
+- **Robustness.** The same results with random forests and neural nets, a continuous penalty, a smaller penalty, other
+  Shapley backgrounds and a background of homes the attacker never saw (which, if anything, helps the attacker).
+  Switching LIME to its Gaussian sampler recovers part of the penalty. A local Shapley background resists the attack
+  but sees less of a neighbourhood-wide penalty to begin with.
 
 **Where I'd value your view**
 
-1. Title and framing: is "geographic awareness is no defence", explained by the floor, the right headline?
-2. Venue: which journal, and should the propositions stay in the main text or move to an appendix?
-3. Literature: which geospatial-XAI and algorithmic-bias work should we position against?
-4. Cook County: in this paper or a follow-up?
-5. The outcome-check section: keep it, given that it clears its bar narrowly?
+1. Venue, and how much of the theory stays in the main text.
+2. Whether Cook County gets its own section or stays one table and a section in Results.
+3. Whether the tests added after the plan (local and unseen backgrounds, continuous penalty, audit checks) stay in the
+   main text, labelled as such, or move to an exploratory section.
+4. The outcome check, which clears its bar narrowly (AUC 0.81 against 0.80).
+5. Literature to position against, and authorship.
 
-**A geographically local audit.** We drew each home's Shapley background from its 100 nearest neighbours, which
-the floor predicts should be harder to fool. It is, even when the attacker retrains: the share kept rises by about a
-tenth. But a local comparison sees less of a neighbourhood-wide penalty to begin with, so it shows less of the
-penalty in absolute terms under attack than the default does. This is Section 5.6, and it is the main reason the
-title says "no defence".
+**Not in this draft:** stronger attacker variants, attackers that adapt to defences, and a full citation check.
 
-**Not in this draft:** five more seeds for the main tables, stronger attacker variants, and Cook County.
-
-The floor also links to a theory project I'd like to discuss with you: detecting hidden bias when a model only
-answers honestly near the data.
+The routing floor also links to the theory project I'd like to discuss with you: detecting hidden bias when a model
+only answers honestly near the data.
 
 Best,
 Robert

@@ -13,6 +13,7 @@ an explainer's queries break. Geography enters through the data. Segregation hel
 background that resists the attack sees less of a neighbourhood-wide penalty; and in Cook County, Illinois, where
 nearly half of the homes are penalised, even the unhidden explanation shows a smaller penalty, while GeoShapley is the
 easier Shapley explainer to fool when the penalty is a function of location. In an audit report led by global feature
-importance the scaffold removes the protected attribute from the top three in most seeds. The results hold across
+importance the scaffold removes the protected attribute from the top three in every seed with LIME and in
+\AuditKernelSHAPMatPassN\ of \AuditKernelSHAPMatSeeds\ with KernelSHAP. The results hold across
 model families, a continuous penalty and reference homes the attacker never saw. A residual check that needs no
 explainer separates the penalised homes from the rest (AUC \EsevenAucLagScaffoldTen\ for a 21\% penalty).
